@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Card, Row, Col, Descriptions, Tag, Progress, Table, Button,
-  Form, InputNumber, Select, DatePicker, Switch, message, Tooltip, Spin, Space, Typography
+  Form, Input, InputNumber, Select, DatePicker, Switch, message, Tooltip, Spin, Space, Typography
 } from 'antd'
 import { ArrowLeftOutlined, EditOutlined, SaveOutlined, CloseOutlined } from '@ant-design/icons'
 import {
@@ -123,8 +123,12 @@ export default function KeyDetail() {
           <Card title="基本配置">
             {editing ? (
               <Form form={form} layout="vertical">
-                <Form.Item name="name" label="名称" rules={[{ required: true }]}>
-                  <Select.Search placeholder="名称" />
+                <Form.Item
+                  name="name"
+                  label="名称"
+                  rules={[{ required: true, message: '请输入名称' }]}
+                >
+                  <Input placeholder="名称" />
                 </Form.Item>
                 <Form.Item name="is_active" label="状态" valuePropName="checked">
                   <Switch checkedChildren="启用" unCheckedChildren="停用" />

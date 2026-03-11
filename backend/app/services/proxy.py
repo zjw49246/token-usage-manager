@@ -1,6 +1,7 @@
 """
 代理转发服务：
 - 将客户端请求转发到上游 Gemini API
+- 支持 OpenAI 兼容模式（API Key）和 Vertex AI 模式（Service Account）
 - 支持流式（SSE）和非流式两种模式
 - 响应结束后异步记录用量
 """
@@ -17,17 +18,59 @@ from app.config import settings
 from app.database import AsyncSessionLocal
 from app.services.quota import record_usage
 
+# 短名 → Vertex AI 全名映射（Vertex 要求 publisher/model 格式）
+_VERTEX_MODEL_MAP: dict[str, str] = {
+    "gemini-2.5-pro-preview-05-06": "google/gemini-2.5-pro-preview-05-06",
+    "gemini-2.5-flash-preview-04-17": "google/gemini-2.5-flash-preview-04-17",
+    "gemini-2.0-flash": "google/gemini-2.0-flash-001",
+    "gemini-2.0-flash-lite": "google/gemini-2.0-flash-lite-001",
+    "gemini-1.5-pro": "google/gemini-1.5-pro-002",
+    "gemini-1.5-flash": "google/gemini-1.5-flash-002",
+}
+
+
+def _map_model_for_upstream(model: str) -> str:
+    """Vertex 模式下将短名转为上游全名；OpenAI 模式原样返回"""
+    if settings.gemini_use_openai_mode:
+        return model
+    return _VERTEX_MODEL_MAP.get(model, model)
+
+
+def _get_vertex_access_token() -> str:
+    """通过 Service Account 获取 Vertex AI OAuth2 Access Token"""
+    from google.oauth2 import service_account
+    from google.auth.transport.requests import Request as GoogleAuthRequest
+
+    credentials = service_account.Credentials.from_service_account_file(
+        settings.google_application_credentials,
+        scopes=["https://www.googleapis.com/auth/cloud-platform"],
+    )
+    credentials.refresh(GoogleAuthRequest())
+    return credentials.token
+
 
 def _upstream_headers() -> dict[str, str]:
     """构造上游请求头（含真实凭证）"""
+    if settings.gemini_use_openai_mode:
+        token = settings.gemini_api_key
+    else:
+        token = _get_vertex_access_token()
     return {
-        "Authorization": f"Bearer {settings.gemini_api_key}",
+        "Authorization": f"Bearer {token}",
         "Content-Type": "application/json",
     }
 
 
 def _upstream_url(path: str) -> str:
-    base = settings.gemini_openai_base_url.rstrip("/")
+    if settings.gemini_use_openai_mode:
+        base = settings.gemini_openai_base_url.rstrip("/")
+    else:
+        project = settings.gcp_project_id
+        location = settings.gcp_location
+        base = (
+            f"https://aiplatform.googleapis.com/v1/projects/{project}"
+            f"/locations/{location}/endpoints/openapi"
+        )
     return f"{base}{path}"
 
 
@@ -75,9 +118,15 @@ async def proxy_request(
     except Exception:
         body_json = {}
 
+    # Vertex 模式下自动将短名映射为上游全名
+    if body_json.get("model"):
+        upstream_model = _map_model_for_upstream(body_json["model"])
+        if upstream_model != body_json["model"]:
+            body_json["model"] = upstream_model
+            body_bytes = json.dumps(body_json).encode()
+
     upstream_url = _upstream_url(path)
     headers = _upstream_headers()
-    # 保留客户端传来的其他 headers（去掉 host/authorization）
     for k, v in request.headers.items():
         if k.lower() not in ("host", "authorization", "content-length", "content-type"):
             headers[k] = v
