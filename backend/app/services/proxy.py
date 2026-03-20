@@ -18,22 +18,14 @@ from app.config import settings
 from app.database import AsyncSessionLocal
 from app.services.quota import record_usage
 
-# 短名 → Vertex AI 全名映射（Vertex 要求 publisher/model 格式）
-_VERTEX_MODEL_MAP: dict[str, str] = {
-    "gemini-2.5-pro-preview-05-06": "google/gemini-2.5-pro-preview-05-06",
-    "gemini-2.5-flash-preview-04-17": "google/gemini-2.5-flash-preview-04-17",
-    "gemini-2.0-flash": "google/gemini-2.0-flash-001",
-    "gemini-2.0-flash-lite": "google/gemini-2.0-flash-lite-001",
-    "gemini-1.5-pro": "google/gemini-1.5-pro-002",
-    "gemini-1.5-flash": "google/gemini-1.5-flash-002",
-}
-
-
 def _map_model_for_upstream(model: str) -> str:
-    """Vertex 模式下将短名转为上游全名；OpenAI 模式原样返回"""
+    """Vertex 模式下将短名转为 google/{model} 格式；OpenAI 模式原样返回"""
     if settings.gemini_use_openai_mode:
         return model
-    return _VERTEX_MODEL_MAP.get(model, model)
+    # Vertex AI 要求 publisher/model 格式，统一加 google/ 前缀
+    if not model.startswith("google/"):
+        return f"google/{model}"
+    return model
 
 
 def _get_vertex_access_token() -> str:
