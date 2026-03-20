@@ -1,5 +1,5 @@
 import { Layout as AntLayout, Menu, Typography } from 'antd'
-import { DashboardOutlined, KeyOutlined, SettingOutlined } from '@ant-design/icons'
+import { DashboardOutlined, KeyOutlined, CodeOutlined, SettingOutlined } from '@ant-design/icons'
 import { useNavigate, useLocation } from 'react-router-dom'
 
 const { Sider, Header, Content } = AntLayout
@@ -7,6 +7,7 @@ const { Sider, Header, Content } = AntLayout
 const menuItems = [
   { key: '/dashboard', icon: <DashboardOutlined />, label: '总览' },
   { key: '/keys', icon: <KeyOutlined />, label: 'API Keys' },
+  { key: '/integration', icon: <CodeOutlined />, label: '接入指南' },
   { key: '/settings', icon: <SettingOutlined />, label: '设置' },
 ]
 

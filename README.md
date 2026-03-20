@@ -63,7 +63,7 @@ client = AsyncOpenAI(
     api_key="tum_xxxxxxxx...",  # 从管理后台创建
 )
 response = await client.chat.completions.create(
-    model="gemini-2.0-flash",
+    model="gemini-2.5-flash",
     messages=[{"role": "user", "content": "Hello"}],
 )
 ```
@@ -92,6 +92,7 @@ response = await client.chat.completions.create(
 - **Dashboard**：总览卡片、Token 趋势折线图、各 Key 占比饼图
 - **API Keys**：列表、创建（含配置）、启停、删除
 - **Key 详情**：配置编辑、用量进度、调用明细表格
+- **接入指南**：多语言示例代码（Python / Node.js / cURL）、可用模型列表、注意事项
 - **Settings**：Admin Token 配置、接入说明
 
 ## API 文档

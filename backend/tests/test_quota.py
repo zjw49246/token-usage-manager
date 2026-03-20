@@ -21,7 +21,7 @@ async def test_model_restriction(admin_client, client):
     assert resp2.status_code == 200
     model_ids = [m["id"] for m in resp2.json()["data"]]
     assert "gemini-2.0-flash" in model_ids
-    assert "gemini-1.5-pro" not in model_ids
+    assert "gemini-2.5-pro" not in model_ids
 
 
 @pytest.mark.asyncio

@@ -11,7 +11,7 @@ import {
 import dayjs from 'dayjs'
 import { getKey, updateKey, getKeyUsage, getTrend } from '../api/index.js'
 
-const MODELS = ['gemini-2.5-pro-preview-05-06', 'gemini-2.5-flash-preview-04-17', 'gemini-2.0-flash', 'gemini-2.0-flash-lite', 'gemini-1.5-pro', 'gemini-1.5-flash']
+const MODELS = ['gemini-3.1-pro-preview', 'gemini-3-flash-preview', 'gemini-3.1-flash-lite-preview', 'gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash']
 
 function fmt(n) {
   if (!n && n !== 0) return '—'

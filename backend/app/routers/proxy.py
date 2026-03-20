@@ -13,12 +13,16 @@ router = APIRouter(prefix="/v1", tags=["proxy"])
 
 # 支持的 Gemini 模型列表（可扩展）
 GEMINI_MODELS = [
-    "gemini-2.5-pro-preview-05-06",
-    "gemini-2.5-flash-preview-04-17",
+    # Gemini 3 系列
+    "gemini-3.1-pro-preview",
+    "gemini-3-flash-preview",
+    "gemini-3.1-flash-lite-preview",
+    # Gemini 2.5 系列（稳定版）
+    "gemini-2.5-pro",
+    "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    # Gemini 2.0 系列（已弃用，保留兼容）
     "gemini-2.0-flash",
-    "gemini-2.0-flash-lite",
-    "gemini-1.5-pro",
-    "gemini-1.5-flash",
 ]
 
 
@@ -50,9 +54,9 @@ async def chat_completions(
     # 从请求体提取模型名
     try:
         body = json.loads(await request.body())
-        model = body.get("model", "gemini-2.0-flash")
+        model = body.get("model", "gemini-2.5-flash")
     except Exception:
-        model = "gemini-2.0-flash"
+        model = "gemini-2.5-flash"
 
     await check_quota(db, api_key, model)
 
