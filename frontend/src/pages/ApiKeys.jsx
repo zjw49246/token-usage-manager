@@ -108,8 +108,8 @@ export default function ApiKeys() {
       <Table columns={columns} dataSource={keys} rowKey="id" loading={loading} />
       <CreateKeyModal
         open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        onCreated={() => { setModalOpen(false); load() }}
+        onClose={() => { setModalOpen(false); load() }}
+        onCreated={() => load()}
       />
     </div>
   )
