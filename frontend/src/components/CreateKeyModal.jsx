@@ -17,6 +17,7 @@ const MODELS = [
   // DeepSeek
   'deepseek-v3-250324',
   'deepseek-r1-250528',
+  'deepseek-v3-2-251201',
 ]
 
 export default function CreateKeyModal({ open, onClose, onCreated }) {

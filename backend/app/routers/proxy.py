@@ -29,6 +29,7 @@ GEMINI_MODELS = [
 DEEPSEEK_MODELS = [
     "deepseek-v3-250324",
     "deepseek-r1-250528",
+    "deepseek-v3-2-251201",  # V3.2，2025年12月
 ]
 
 # 所有支持的模型
