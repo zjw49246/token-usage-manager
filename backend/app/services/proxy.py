@@ -1,6 +1,7 @@
 """
 代理转发服务：
-- 将客户端请求转发到上游 Gemini API
+- 将客户端请求转发到上游 API（Gemini / DeepSeek）
+- 根据模型名自动路由到对应的上游服务
 - 支持 OpenAI 兼容模式（API Key）和 Vertex AI 模式（Service Account）
 - 支持流式（SSE）和非流式两种模式
 - 响应结束后异步记录用量
@@ -18,8 +19,19 @@ from app.config import settings
 from app.database import AsyncSessionLocal
 from app.services.quota import record_usage
 
+# DeepSeek 模型前缀
+DEEPSEEK_MODEL_PREFIXES = ("deepseek-",)
+
+
+def _is_deepseek_model(model: str) -> bool:
+    """判断是否为 DeepSeek 模型"""
+    return any(model.startswith(p) for p in DEEPSEEK_MODEL_PREFIXES)
+
+
 def _map_model_for_upstream(model: str) -> str:
-    """Vertex 模式下将短名转为 google/{model} 格式；OpenAI 模式原样返回"""
+    """Vertex 模式下将短名转为 google/{model} 格式；其他模式原样返回"""
+    if _is_deepseek_model(model):
+        return model
     if settings.gemini_use_openai_mode:
         return model
     # Vertex AI 要求 publisher/model 格式，统一加 google/ 前缀
@@ -41,9 +53,11 @@ def _get_vertex_access_token() -> str:
     return credentials.token
 
 
-def _upstream_headers() -> dict[str, str]:
-    """构造上游请求头（含真实凭证）"""
-    if settings.gemini_use_openai_mode:
+def _upstream_headers(model: str) -> dict[str, str]:
+    """构造上游请求头（含真实凭证），根据模型选择对应的凭证"""
+    if _is_deepseek_model(model):
+        token = settings.deepseek_api_key
+    elif settings.gemini_use_openai_mode:
         token = settings.gemini_api_key
     else:
         token = _get_vertex_access_token()
@@ -53,8 +67,11 @@ def _upstream_headers() -> dict[str, str]:
     }
 
 
-def _upstream_url(path: str) -> str:
-    if settings.gemini_use_openai_mode:
+def _upstream_url(path: str, model: str) -> str:
+    """根据模型选择对应的上游 URL"""
+    if _is_deepseek_model(model):
+        base = settings.deepseek_base_url.rstrip("/")
+    elif settings.gemini_use_openai_mode:
         base = settings.gemini_openai_base_url.rstrip("/")
     else:
         project = settings.gcp_project_id
@@ -110,15 +127,15 @@ async def proxy_request(
     except Exception:
         body_json = {}
 
-    # Vertex 模式下自动将短名映射为上游全名
+    # 自动将短名映射为上游全名（Vertex 模式）
     if body_json.get("model"):
         upstream_model = _map_model_for_upstream(body_json["model"])
         if upstream_model != body_json["model"]:
             body_json["model"] = upstream_model
             body_bytes = json.dumps(body_json).encode()
 
-    upstream_url = _upstream_url(path)
-    headers = _upstream_headers()
+    upstream_url = _upstream_url(path, model)
+    headers = _upstream_headers(model)
     for k, v in request.headers.items():
         if k.lower() not in ("host", "authorization", "content-length", "content-type"):
             headers[k] = v

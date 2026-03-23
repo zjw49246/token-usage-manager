@@ -6,6 +6,7 @@ import { CopyOutlined } from '@ant-design/icons'
 import { createKey } from '../api/index.js'
 
 const MODELS = [
+  // Gemini
   'gemini-3.1-pro-preview',
   'gemini-3-flash-preview',
   'gemini-3.1-flash-lite-preview',
@@ -13,6 +14,9 @@ const MODELS = [
   'gemini-2.5-flash',
   'gemini-2.5-flash-lite',
   'gemini-2.0-flash',
+  // DeepSeek
+  'deepseek-v3-250324',
+  'deepseek-r1-250528',
 ]
 
 export default function CreateKeyModal({ open, onClose, onCreated }) {

@@ -176,6 +176,8 @@ export default function Integration() {
             <Tag color="blue">gemini-2.5-flash</Tag>
             <Tag color="blue">gemini-2.5-flash-lite</Tag>
             <Tag color="default">gemini-2.0-flash</Tag>
+            <Tag color="green">deepseek-v3-250324</Tag>
+            <Tag color="green">deepseek-r1-250528</Tag>
           </div>
         </Paragraph>
       </Card>

@@ -15,6 +15,10 @@ class Settings(BaseSettings):
     gcp_location: str = "global"
     google_application_credentials: str = ""
 
+    # 上游 DeepSeek 配置（可选）
+    deepseek_api_key: str = ""
+    deepseek_base_url: str = "https://ark.cn-beijing.volces.com/api/v3"
+
     # 管理器配置
     admin_token: str = "change-me"
     database_url: str = "sqlite+aiosqlite:///./data/token_manager.db"
