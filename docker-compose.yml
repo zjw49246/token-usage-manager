@@ -9,7 +9,7 @@ services:
       # Persist SQLite database
       - db-data:/app/backend/data
       # Mount GCP credentials (if using Vertex AI)
-      # - ./backend/credentials.json:/app/backend/credentials.json:ro
+      - ./backend/credentials.json:/app/backend/credentials.json:ro
     restart: unless-stopped
 
 volumes:
