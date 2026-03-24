@@ -1,0 +1,14 @@
+backend/.env
+backend/credentials.json
+backend/data/
+backend/.venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/**/*.pyc
+frontend/node_modules/
+frontend/dist/
+.DS_Store
+.git
+.claude-manager/
+*.md
+!README.md

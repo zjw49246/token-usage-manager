@@ -12,9 +12,9 @@
                └─ React 前端 (前端 build 后由 FastAPI 托管)
 ```
 
-## 快速开始
+## 快速开始（Docker）
 
-### 1. 后端配置
+### 1. 配置环境变量
 
 ```bash
 cd backend
@@ -22,15 +22,38 @@ cp .env.example .env
 # 编辑 .env，填入真实的 GEMINI_API_KEY 和 ADMIN_TOKEN
 ```
 
-### 2. 安装依赖并启动后端
+### 2. 启动服务
+
+```bash
+docker compose up -d
+```
+
+服务访问：http://localhost:8000
+
+如需使用 Vertex AI 模式，取消 `docker-compose.yml` 中 credentials 挂载的注释。
+
+### 3. 查看日志 / 停止
+
+```bash
+docker compose logs -f    # 查看日志
+docker compose down        # 停止服务
+```
+
+数据库通过 Docker volume (`db-data`) 持久化，容器重建不会丢失数据。
+
+## 本地开发（不用 Docker）
+
+### 1. 后端
 
 ```bash
 cd backend
+cp .env.example .env
+# 编辑 .env
 uv sync
 uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-### 3. 构建前端（生产）
+### 2. 构建前端（生产）
 
 ```bash
 cd frontend
@@ -39,7 +62,7 @@ npm run build
 # build 产物在 frontend/dist，FastAPI 启动时自动挂载
 ```
 
-### 4. 开发模式（前后端分离）
+### 3. 开发模式（前后端分离）
 
 ```bash
 # 终端1：后端
