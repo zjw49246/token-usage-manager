@@ -28,7 +28,7 @@ cp .env.example .env
 docker compose up -d
 ```
 
-服务访问：http://localhost:8000
+服务访问：https://token.claude-code-manager.com（或本地 http://localhost:8001）
 
 如需使用 Vertex AI 模式，取消 `docker-compose.yml` 中 credentials 挂载的注释。
 
@@ -120,4 +120,4 @@ response = await client.chat.completions.create(
 
 ## API 文档
 
-启动后访问 http://localhost:8000/api/docs
+启动后访问 https://token.claude-code-manager.com/api/docs（或本地 http://localhost:8001/api/docs）
