@@ -21,4 +21,4 @@
 - upsert 用数据库原生的 `ON CONFLICT`，不要在应用层做 check-then-insert。
 - fire-and-forget 的后台 task 不能承载「一致性关键」的写入（异常会被吞、进程重启会丢）。
 
-**commit**: <见本次提交>（fix-concurrent-quota-race 分支）
+**commit**: 1558069（fix-concurrent-quota-race 分支）
