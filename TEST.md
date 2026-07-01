@@ -18,6 +18,8 @@ uv run pytest tests/ -v
 | `test_quota.py` | 时间区间限制 | 过期 Key 返回 403 |
 | `test_quota.py` | Admin CRUD | 创建/列表/更新/删除/404 |
 | `test_quota.py` | 统计接口 | /admin/stats/overview 返回正确字段 |
+| `test_quota.py` | 并发不绕过调用配额 | max_calls=3 并发 20 次，恰好放行 3 次，其余 429 |
+| `test_quota.py` | 并发记账不崩 | 首次并发记账无 UNIQUE 冲突，token 累加无丢失 |
 
 ## 手动集成测试
 
