@@ -32,9 +32,11 @@ async def list_catalog_models(
             {
                 "id": m.model_id,
                 "provider": p.name,
+                "mode": m.mode,
                 "display_name": m.display_name,
                 "input_price_per_1m": m.input_price_per_1m,
                 "output_price_per_1m": m.output_price_per_1m,
+                "image_price": m.image_price,
                 "context_window": m.context_window,
                 "max_output_tokens": m.max_output_tokens,
                 "capabilities": m.capabilities,

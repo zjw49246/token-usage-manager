@@ -1,5 +1,22 @@
 # 经验教训沉淀
 
+## token-router 改造 P8：补齐端点类型（embeddings / image）
+
+**要点 / 决策**
+- 抽出通用故障转移执行器 `_try_failover(routes, fn, extract_usage, extract_cost)`，
+  embeddings/images 复用同一套「逐通道尝试 + 记账」，避免每种端点重写重试逻辑。
+- 计价分流：embeddings 按 token（复用 compute_cost）；image 按张（`cost_override = n × image_price`）。
+  为此给 `_save_usage_bg` 加 `cost_override`，非 token 计价也能统一记账。
+- litellm 图像模型价格是「按像素/尺寸前缀命名」的长尾（键形如 `1024-x-1024/dall-e-2`），
+  直接灌会污染目录且 litellm_model 无效——只收录有 `output_cost_per_image` 且键无 `/` 的干净名，
+  主流 dall-e-3/gpt-image-1 手工补每张价。
+
+**以后如何避免**
+- 多种"同构但计价不同"的端点，先抽公共执行器，把差异收敛到几个小回调（usage/cost 提取），别整段复制。
+- 灌第三方价格表前先看清它的键命名规律，长尾/变体命名要用白名单或规整，别直接全量入库。
+
+**commit**: 见本分支（feat/token-router-p8-endpoints）
+
 ## token-router 改造 P7：响应缓存（去重复用 + 命中计费）
 
 **要点 / 决策**

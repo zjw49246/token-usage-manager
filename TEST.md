@@ -58,6 +58,10 @@ uv run pytest tests/ -v
 | `test_cache.py` | 命中折算计费 | 命中记 cached=True，成本按 multiplier（0=免费），provider=cache，tokens 仍记 |
 | `test_cache.py` | 流式不缓存 | 流式请求两次都打上游 |
 | `test_cache.py` | 关闭缓存 | cache_enabled=false 时每次都打上游 |
+| `test_endpoints.py` | embeddings 端点 | /v1/embeddings 回显公开名，按 token 计价记账 |
+| `test_endpoints.py` | image 按张计价 | /v1/images/generations 按 n×image_price 计费 |
+| `test_endpoints.py` | 目录暴露 mode | catalog 返回 mode/image_price（chat/embedding/image）|
+| `test_endpoints.py` | 端点未知模型 404 | embeddings 未知模型 404 |
 
 ## 手动集成测试
 
