@@ -197,6 +197,31 @@ def _completion_kwargs(route: ModelRoute, body: dict) -> dict:
     return kwargs
 
 
+async def _mark_channel(channel_id: int | None, ok: bool, status_code: int | None = None) -> None:
+    """后台更新通道健康状态；鉴权类错误可按配置自动禁用（P18）。best-effort，带瞬时锁重试。"""
+    if not channel_id:
+        return
+    for attempt in range(4):
+        try:
+            async with AsyncSessionLocal() as db:
+                ch = await db.get(Channel, channel_id)
+                if ch is None:
+                    return
+                ch.status = "active" if ok else "error"
+                if not ok and settings.channel_auto_disable and status_code in (401, 403):
+                    ch.enabled = False
+                await db.commit()
+            return
+        except Exception:
+            await asyncio.sleep(0.02 * (attempt + 1))
+
+
+def _note(route: ModelRoute, ok: bool, exc: Exception | None = None) -> None:
+    if route.channel_id:
+        code = getattr(exc, "status_code", None) if exc else None
+        asyncio.create_task(_mark_channel(route.channel_id, ok, code))
+
+
 def _map_litellm_error(e: Exception) -> HTTPException:
     status = getattr(e, "status_code", None) or 502
     message = getattr(e, "message", None) or str(e)
@@ -246,7 +271,9 @@ async def acompletion_once(api_key: ApiKey, routes, body: dict) -> dict:
             resp = await litellm.acompletion(**_completion_kwargs(route, body), stream=False)
         except Exception as e:
             last_exc = e
+            _note(route, False, e)
             continue
+        _note(route, True)
         duration_ms = int(time.time() * 1000) - start_ms
         data = resp.model_dump(exclude_none=True)
         data["model"] = route.catalog.model_id
@@ -416,7 +443,9 @@ async def _route_litellm_json(api_key: ApiKey, routes, body: dict, litellm_fn, s
             resp = await litellm_fn(**kwargs)
         except Exception as e:
             last_exc = e
+            _note(route, False, e)
             continue
+        _note(route, True)
         duration_ms = int(time.time() * 1000) - start_ms
         data = resp.model_dump(exclude_none=True) if hasattr(resp, "model_dump") else dict(resp)
         data["model"] = route.catalog.model_id

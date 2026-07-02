@@ -32,6 +32,8 @@ class Settings(BaseSettings):
 
     # 路由（P6）：单次请求最多尝试的通道数（首个 + 故障转移）
     max_retries: int = 2
+    # 通道健康（P18）：鉴权类错误(401/403)时是否自动禁用通道
+    channel_auto_disable: bool = False
 
     # 缓存（P7）：相同请求去重复用；命中按 multiplier 折算成本（0=免费）
     cache_enabled: bool = True

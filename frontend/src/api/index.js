@@ -80,5 +80,6 @@ export const listChannelProviders = () => api.get('/channels/providers').then(r 
 export const createChannel = (data) => api.post('/channels', data).then(r => r.data)
 export const updateChannel = (id, data) => api.patch(`/channels/${id}`, data).then(r => r.data)
 export const deleteChannel = (id) => api.delete(`/channels/${id}`)
+export const testChannel = (id) => api.post(`/channels/${id}/test`).then(r => r.data)
 
 export default api
