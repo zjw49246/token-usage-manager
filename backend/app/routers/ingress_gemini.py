@@ -29,18 +29,18 @@ async def _handle(model_and_action: str, request: Request, api_key: ApiKey, db: 
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid JSON body")
 
-    route = await core.resolve_model(db, model)
+    routes = await core.resolve_routes(db, model)
     await check_quota(db, api_key, model)
 
     openai_body = dialect.gemini_to_openai(body, model)
 
     if streaming:
-        chunks = core.aiter_openai_chunks(api_key, route, openai_body)
+        chunks = core.aiter_openai_chunks(api_key, routes, openai_body)
         return StreamingResponse(
             dialect.openai_chunks_to_gemini_sse(chunks, model),
             media_type="text/event-stream",
         )
-    data = await core.acompletion_once(api_key, route, openai_body)
+    data = await core.acompletion_once(api_key, routes, openai_body)
     return JSONResponse(content=dialect.openai_to_gemini(data, model))
 
 

@@ -8,6 +8,7 @@
 import asyncio
 import json
 import os
+import random
 import time
 from typing import AsyncGenerator
 
@@ -19,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import AsyncSessionLocal
-from app.models import ModelCatalog, Provider, ApiKey
+from app.models import ModelCatalog, Provider, ApiKey, Channel
 from app.services.quota import record_usage
 
 # LiteLLM 全局行为：不落盘、不打调用日志
@@ -33,16 +34,19 @@ _SETTINGS_CREDENTIAL_FALLBACK = {
 
 
 class ModelRoute:
-    """一次调用所需的路由信息（目录行 + 供应商 + 凭证）"""
+    """一次调用的已解析路由（目录行用于计价/公开名 + 上游调用参数 + 通道标识）"""
 
-    def __init__(self, catalog: ModelCatalog, provider: Provider, api_key: str | None):
+    def __init__(self, catalog: ModelCatalog, provider_name: str, upstream_model: str,
+                 api_key: str | None, api_base: str | None, channel_id: int | None = None):
         self.catalog = catalog
-        self.provider = provider
+        self.provider_name = provider_name
+        self.upstream_model = upstream_model
         self.api_key = api_key
+        self.api_base = api_base
+        self.channel_id = channel_id
 
 
-def _resolve_credential(provider: Provider) -> str | None:
-    env_name = provider.credential_env
+def _resolve_env_credential(env_name: str | None) -> str | None:
     if not env_name:
         return None
     value = os.environ.get(env_name)
@@ -52,8 +56,39 @@ def _resolve_credential(provider: Provider) -> str | None:
     return value or None
 
 
-async def resolve_model(db: AsyncSession, model_id: str) -> ModelRoute:
-    """model_id → 路由信息；未知/停用模型返回 OpenAI 风格 404"""
+def _model_not_found(model_id: str) -> HTTPException:
+    return HTTPException(
+        status_code=404,
+        detail={"error": {
+            "message": f"The model '{model_id}' does not exist or is disabled",
+            "type": "invalid_request_error", "code": "model_not_found",
+        }},
+    )
+
+
+def _weighted_order(channels: list[Channel]) -> list[Channel]:
+    """按 priority 分层（高者先），层内按 weight 加权随机排序，输出故障转移尝试顺序"""
+    ordered: list[Channel] = []
+    by_prio: dict[int, list[Channel]] = {}
+    for ch in channels:
+        by_prio.setdefault(ch.priority, []).append(ch)
+    for prio in sorted(by_prio, reverse=True):
+        tier = by_prio[prio][:]
+        # 加权随机洗牌：按 weight 无放回抽样
+        while tier:
+            weights = [max(1, c.weight) for c in tier]
+            pick = random.choices(range(len(tier)), weights=weights, k=1)[0]
+            ordered.append(tier.pop(pick))
+    return ordered
+
+
+async def resolve_routes(db: AsyncSession, model_id: str) -> list[ModelRoute]:
+    """model_id → 有序的候选路由列表（用于负载均衡 + 故障转移）。
+
+    优先用 channels 表里服务该模型的启用通道（加权随机+优先级排序）；
+    若无通道配置，则回退到 model_catalog + provider 的单路由（向后兼容）。
+    未知/停用模型 → 404。
+    """
     row = (
         await db.execute(
             select(ModelCatalog, Provider)
@@ -62,17 +97,42 @@ async def resolve_model(db: AsyncSession, model_id: str) -> ModelRoute:
         )
     ).first()
     if row is None or not row.ModelCatalog.enabled or not row.Provider.enabled:
-        raise HTTPException(
-            status_code=404,
-            detail={
-                "error": {
-                    "message": f"The model '{model_id}' does not exist or is disabled",
-                    "type": "invalid_request_error",
-                    "code": "model_not_found",
-                }
-            },
-        )
-    return ModelRoute(row.ModelCatalog, row.Provider, _resolve_credential(row.Provider))
+        raise _model_not_found(model_id)
+    catalog, provider = row.ModelCatalog, row.Provider
+
+    # 找服务该模型的启用通道
+    all_channels = (
+        await db.execute(select(Channel).where(Channel.enabled.is_(True)))
+    ).scalars().all()
+    serving = [c for c in all_channels if c.models and model_id in c.models]
+
+    if serving:
+        # 需要各通道的 provider 前缀/api_base
+        prov_by_id = {
+            p.id: p for p in (await db.execute(select(Provider))).scalars().all()
+        }
+        routes: list[ModelRoute] = []
+        for ch in _weighted_order(serving):
+            prov = prov_by_id.get(ch.provider_id)
+            if prov is None or not prov.enabled:
+                continue
+            upstream = (ch.model_map or {}).get(model_id) or catalog.litellm_model
+            api_key = ch.api_key or _resolve_env_credential(prov.credential_env)
+            api_base = ch.api_base or prov.api_base
+            routes.append(ModelRoute(catalog, prov.name, upstream, api_key, api_base, ch.id))
+        if routes:
+            return routes
+
+    # 回退：单路由（无通道配置时的行为，与 P1~P5 一致）
+    return [ModelRoute(
+        catalog, provider.name, catalog.litellm_model,
+        _resolve_env_credential(provider.credential_env), provider.api_base,
+    )]
+
+
+async def resolve_model(db: AsyncSession, model_id: str) -> ModelRoute:
+    """兼容旧签名：返回首选路由（仅用于存在性校验）"""
+    return (await resolve_routes(db, model_id))[0]
 
 
 def compute_cost(
@@ -106,7 +166,7 @@ async def _save_usage_bg(
             db, api_key.id, route.catalog.model_id,
             input_tokens, output_tokens, total_tokens,
             duration_ms, status, error_message,
-            provider=route.provider.name,
+            provider=route.provider_name,
             cost_usd=cost,
             org_id=api_key.org_id,
         )
@@ -115,11 +175,11 @@ async def _save_usage_bg(
 def _completion_kwargs(route: ModelRoute, body: dict) -> dict:
     """把客户端请求体转成 litellm.acompletion 参数"""
     kwargs = {k: v for k, v in body.items() if k not in ("model", "stream")}
-    kwargs["model"] = route.catalog.litellm_model
+    kwargs["model"] = route.upstream_model
     if route.api_key:
         kwargs["api_key"] = route.api_key
-    if route.provider.api_base:
-        kwargs["api_base"] = route.provider.api_base
+    if route.api_base:
+        kwargs["api_base"] = route.api_base
     kwargs["timeout"] = 600
     return kwargs
 
@@ -130,51 +190,87 @@ def _map_litellm_error(e: Exception) -> HTTPException:
     return HTTPException(status_code=status, detail=f"Upstream error: {message}")
 
 
-# ══════════════════ 可复用核心（产出 OpenAI 规范结果 + 记账）══════════════════
+def _as_routes(routes) -> list[ModelRoute]:
+    """兼容：既接受单个 ModelRoute 也接受列表"""
+    return routes if isinstance(routes, list) else [routes]
+
+
+def _attempts(routes: list[ModelRoute]) -> list[ModelRoute]:
+    """按 max_retries 截断尝试次数（首次 + 若干次故障转移）"""
+    return routes[: max(1, min(len(routes), settings.max_retries + 1))]
+
+
+# ══════════════════ 可复用核心（产出 OpenAI 规范结果 + 记账 + 故障转移）══════════════════
 # 三种入口方言（OpenAI / Anthropic / Gemini）都建立在这两个函数之上：
 #   acompletion_once  → 非流式，返回 OpenAI 响应 dict
 #   aiter_openai_chunks → 流式，逐块 yield OpenAI chunk dict
-# 记账（token/成本）在核心统一完成，方言层只负责格式转换。
+# 传入有序候选路由（多通道），逐条尝试实现负载均衡 + 失败故障转移。
 
 
-async def acompletion_once(api_key: ApiKey, route: ModelRoute, body: dict) -> dict:
-    """非流式：调用 LiteLLM，返回 OpenAI 响应 dict（对外回显公开模型名），并记账"""
-    kwargs = _completion_kwargs(route, body)
+async def acompletion_once(api_key: ApiKey, routes, body: dict) -> dict:
+    """非流式：按候选路由顺序尝试（失败即换下一通道），首个成功即返回并记账"""
+    routes = _attempts(_as_routes(routes))
     start_ms = int(time.time() * 1000)
-    try:
-        resp = await litellm.acompletion(**kwargs, stream=False)
-    except Exception as e:
+    last_exc = None
+    for route in routes:
+        try:
+            resp = await litellm.acompletion(**_completion_kwargs(route, body), stream=False)
+        except Exception as e:
+            last_exc = e
+            continue
+        duration_ms = int(time.time() * 1000) - start_ms
+        data = resp.model_dump(exclude_none=True)
+        data["model"] = route.catalog.model_id
+        usage = data.get("usage") or {}
         asyncio.create_task(_save_usage_bg(
-            api_key, route, None, None, None,
-            int(time.time() * 1000) - start_ms, "error", str(e)[:500],
+            api_key, route,
+            usage.get("prompt_tokens"), usage.get("completion_tokens"), usage.get("total_tokens"),
+            duration_ms,
         ))
-        raise _map_litellm_error(e)
+        return data
 
-    duration_ms = int(time.time() * 1000) - start_ms
-    data = resp.model_dump(exclude_none=True)
-    data["model"] = route.catalog.model_id
-    usage = data.get("usage") or {}
+    # 全部通道失败
     asyncio.create_task(_save_usage_bg(
-        api_key, route,
-        usage.get("prompt_tokens"), usage.get("completion_tokens"), usage.get("total_tokens"),
-        duration_ms,
+        api_key, routes[-1], None, None, None,
+        int(time.time() * 1000) - start_ms, "error", str(last_exc)[:500],
     ))
-    return data
+    raise _map_litellm_error(last_exc)
 
 
-async def aiter_openai_chunks(api_key: ApiKey, route: ModelRoute, body: dict) -> AsyncGenerator[dict, None]:
-    """流式：逐块 yield OpenAI chunk dict（尾块含 usage）；异常向上抛，记账在 finally 统一完成"""
-    kwargs = _completion_kwargs(route, body)
+async def aiter_openai_chunks(api_key: ApiKey, routes, body: dict) -> AsyncGenerator[dict, None]:
+    """流式：按候选路由尝试建流（建流前失败可换通道），成流后逐块 yield；记账在 finally 统一完成。
+
+    注意：一旦开始产出 chunk 就不再重试（无法回滚已发给客户端的内容）——这是流式故障转移的通行边界。
+    """
+    routes = _attempts(_as_routes(routes))
     start_ms = int(time.time() * 1000)
+    stream = None
+    chosen = None
+    last_exc = None
+    for route in routes:
+        try:
+            stream = await litellm.acompletion(
+                **_completion_kwargs(route, body), stream=True, stream_options={"include_usage": True},
+            )
+            chosen = route
+            break
+        except Exception as e:
+            last_exc = e
+            continue
+
+    if stream is None:
+        asyncio.create_task(_save_usage_bg(
+            api_key, routes[-1], None, None, None,
+            int(time.time() * 1000) - start_ms, "error", str(last_exc)[:500],
+        ))
+        raise _map_litellm_error(last_exc)
+
     inp = out = total = None
     status, error_msg = "success", None
     try:
-        stream = await litellm.acompletion(
-            **kwargs, stream=True, stream_options={"include_usage": True},
-        )
         async for chunk in stream:
             data = chunk.model_dump(exclude_none=True)
-            data["model"] = route.catalog.model_id
+            data["model"] = chosen.catalog.model_id
             usage = data.get("usage")
             if usage:
                 inp = usage.get("prompt_tokens", inp)
@@ -187,16 +283,16 @@ async def aiter_openai_chunks(api_key: ApiKey, route: ModelRoute, body: dict) ->
     finally:
         duration_ms = int(time.time() * 1000) - start_ms
         asyncio.create_task(_save_usage_bg(
-            api_key, route, inp, out, total, duration_ms, status, error_msg,
+            api_key, chosen, inp, out, total, duration_ms, status, error_msg,
         ))
 
 
 # ══════════════════ OpenAI 入口格式化 ══════════════════
 
 
-async def _openai_sse(api_key: ApiKey, route: ModelRoute, body: dict) -> AsyncGenerator[bytes, None]:
+async def _openai_sse(api_key: ApiKey, routes, body: dict) -> AsyncGenerator[bytes, None]:
     try:
-        async for data in aiter_openai_chunks(api_key, route, body):
+        async for data in aiter_openai_chunks(api_key, routes, body):
             yield f"data: {json.dumps(data, ensure_ascii=False)}\n\n".encode()
         yield b"data: [DONE]\n\n"
     except Exception as e:
@@ -205,12 +301,12 @@ async def _openai_sse(api_key: ApiKey, route: ModelRoute, body: dict) -> AsyncGe
 
 
 async def route_chat_completion(
-    api_key: ApiKey, route: ModelRoute, body: dict
+    api_key: ApiKey, routes, body: dict
 ) -> StreamingResponse | JSONResponse:
     """OpenAI chat/completions 入口（流式/非流式）"""
     if bool(body.get("stream", False)):
         return StreamingResponse(
-            _openai_sse(api_key, route, body),
+            _openai_sse(api_key, routes, body),
             media_type="text/event-stream",
         )
-    return JSONResponse(content=await acompletion_once(api_key, route, body))
+    return JSONResponse(content=await acompletion_once(api_key, routes, body))

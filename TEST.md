@@ -48,6 +48,11 @@ uv run pytest tests/ -v
 | `test_billing.py` | 充值权限 | owner 充值成功并记 topup；member 充值 403 |
 | `test_billing.py` | 欠额闸门 | 余额<=0 时调用返回 402 |
 | `test_billing.py` | 消费扣减台账 | 调用后余额按成本减少，生成 usage 台账 |
+| `test_failover.py` | 故障转移 | 通道A失败自动转通道B成功 |
+| `test_failover.py` | 全部失败 | 所有通道失败返回上游状态码 |
+| `test_failover.py` | 重试上限 | max_retries 限制最多尝试通道数 |
+| `test_failover.py` | 无通道兼容 | 未配通道时回退单路由仍成功 |
+| `test_failover.py` | 通道管理权限 | 普通用户 403；超管可 CRUD，凭证不回显明文 |
 
 ## 手动集成测试
 

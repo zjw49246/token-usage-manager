@@ -5,7 +5,7 @@ from sqlalchemy import select, func, and_
 
 from app.database import get_db
 from app.dependencies import require_admin
-from app.models import ApiKey, UsageRecord, UsageSummary
+from app.models import ApiKey, UsageRecord, UsageSummary, User
 from app.schemas import (
     ApiKeyCreate, ApiKeyUpdate, ApiKeyOut, ApiKeyCreated,
     UsageSummaryOut, UsageRecordOut, UsageListOut,
@@ -14,6 +14,23 @@ from app.schemas import (
 from app.services.auth import generate_api_key
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
+
+
+@router.post("/superadmin")
+async def promote_superadmin(payload: dict, db: AsyncSession = Depends(get_db)):
+    """用平台 ADMIN_TOKEN 把某个已注册用户提升为超管（bootstrap 通道/供应商管理）。
+
+    body: {"email": "..."}
+    """
+    email = (payload or {}).get("email")
+    if not email:
+        raise HTTPException(status_code=400, detail="Missing 'email'")
+    user = (await db.execute(select(User).where(User.email == email))).scalar_one_or_none()
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found (must register first)")
+    user.is_superadmin = True
+    await db.commit()
+    return {"email": email, "is_superadmin": True}
 
 
 def _now_utc():

@@ -70,4 +70,11 @@ export const topupCredits = (orgId, data) => api.post(`/orgs/${orgId}/credits`, 
 // ── Catalog ──
 export const listCatalogModels = (params) => api.get('/catalog/models', { params }).then(r => r.data)
 
+// ── Channels (superadmin) ──
+export const listChannels = () => api.get('/channels').then(r => r.data)
+export const listChannelProviders = () => api.get('/channels/providers').then(r => r.data)
+export const createChannel = (data) => api.post('/channels', data).then(r => r.data)
+export const updateChannel = (id, data) => api.patch(`/channels/${id}`, data).then(r => r.data)
+export const deleteChannel = (id) => api.delete(`/channels/${id}`)
+
 export default api
