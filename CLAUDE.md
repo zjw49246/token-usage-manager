@@ -30,6 +30,8 @@
 - **计费**（P4 后）：`services/credits.py` 的 `apply_credit` 原子改余额+写台账；新组织赠送
   `welcome_credit_usd`；`record_usage` 按成本扣减组织余额并记 usage 台账；`check_quota` 在
   `enforce_credit_balance` 下余额<=0 返回 402；`/orgs/{id}/credits` GET 查余额+流水、POST 充值(owner)
+- **CLI**（P12）：`app/cli.py`，`python -m app.cli <命令>`（login/models/keys/usage/balance/topup），
+  配置存 `~/.tokenrouter/config.json`；console script `tr`（需 pip install 打包后可用）
 - **前端**（P2b/P4 后）：React18 + Vite + antd5，build 后由 FastAPI 托管；`frontend/`。
   JWT 会话（`stores/authStore.js`）+ 登录注册页 + 顶栏组织切换器 + 成员管理页；
   数据页走 `/orgs/{currentOrgId}/*`；模型目录对比页（Models）+ 额度计费页（Billing）；旧 adminStore 已删

@@ -21,6 +21,9 @@ dependencies = [
     "stripe>=11.0",
 ]
 
+[project.scripts]
+tr = "app.cli:main"
+
 [dependency-groups]
 dev = [
     "pytest>=8.0",

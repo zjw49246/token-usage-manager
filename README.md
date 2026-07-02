@@ -108,6 +108,21 @@ client.models.generate_content(model="gemini-2.5-flash", contents="Hi")
 - **接入指南**：OpenAI / Anthropic / Gemini 三种 SDK 示例
 - **组织切换器 + 登录注册**：多租户账户体系
 
+## 命令行工具（CLI）
+
+```bash
+cd backend
+export TR_BASE_URL=http://localhost:8001   # 或线上地址
+uv run python -m app.cli login -e you@example.com
+uv run python -m app.cli models --mode chat        # 列模型
+uv run python -m app.cli keys create --name app --max-cost 10
+uv run python -m app.cli usage                       # 用量总览
+uv run python -m app.cli balance                     # 余额
+uv run python -m app.cli topup 50                    # 充值
+```
+
+配置存 `~/.tokenrouter/config.json`。`pip install .` 后可直接用 `tr <命令>`。
+
 ## API 文档
 
 启动后访问 `/api/docs`（本地 http://localhost:8001/api/docs）。
