@@ -20,7 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.database import AsyncSessionLocal
-from app.models import ModelCatalog, Provider, ApiKey, Channel
+from app.models import ModelCatalog, Provider, ApiKey, Channel, ModelAlias
 from app.services.quota import record_usage
 from app.services.cache import cache_key, get_cache
 
@@ -90,6 +90,13 @@ async def resolve_routes(db: AsyncSession, model_id: str) -> list[ModelRoute]:
     若无通道配置，则回退到 model_catalog + provider 的单路由（向后兼容）。
     未知/停用模型 → 404。
     """
+    # 模型别名透明改写
+    alias_target = await db.scalar(
+        select(ModelAlias.target_model_id).where(ModelAlias.alias == model_id)
+    )
+    if alias_target:
+        model_id = alias_target
+
     row = (
         await db.execute(
             select(ModelCatalog, Provider)
