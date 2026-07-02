@@ -4,8 +4,9 @@
 
 ## 架构与改造方向
 
-本项目正在从「Gemini/DeepSeek 用量代理」改造为 TokenRouter 式的多供应商 AI 网关，
-完整方案见 `docs/TOKEN_ROUTER_TRANSFORM.md`（分 P0~P5 六期）。
+本项目已从「Gemini/DeepSeek 用量代理」改造为 TokenRouter——多供应商 AI 网关
+（P0~P5 六期完成）。改造历程见 `docs/TOKEN_ROUTER_TRANSFORM.md`。
+产品形态：三入口协议（OpenAI/Anthropic/Gemini）+ LiteLLM 内核 + 多租户 RBAC + 预付费计费 + 模型目录。
 
 - **后端**：FastAPI + SQLAlchemy 2.0 async + SQLite(WAL)，`uv` 管理依赖；`backend/app/`
 - **迁移**：Alembic（`backend/alembic/`）。已有部署先 `alembic stamp 001` 再 `alembic upgrade head`；

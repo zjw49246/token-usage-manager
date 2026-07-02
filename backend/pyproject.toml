@@ -1,7 +1,7 @@
 [project]
-name = "token-usage-manager"
+name = "tokenrouter"
 version = "0.1.0"
-description = "A token usage management proxy for LLM APIs"
+description = "TokenRouter — unified multi-provider AI model gateway"
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115",
