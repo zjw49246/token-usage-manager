@@ -29,6 +29,7 @@ export default function CreateKeyModal({ orgId, open, onClose, onCreated }) {
         max_total_tokens: values.max_total_tokens || null,
         max_calls: values.max_calls || null,
         max_rpm: values.max_rpm || null,
+        model_rpm: values.model_rpm ? JSON.parse(values.model_rpm) : null,
         max_cost_usd: values.max_cost_usd || null,
         allowed_ips: values.allowed_ips?.length ? values.allowed_ips : null,
         valid_from: values.time_range?.[0]?.toISOString() || null,
@@ -123,6 +124,11 @@ export default function CreateKeyModal({ orgId, open, onClose, onCreated }) {
           </Form.Item>
           <Form.Item name="max_cost_usd" label="成本上限 USD（留空 = 不限）">
             <InputNumber min={0.01} step={1} style={{ width: '100%' }} placeholder="如：10" prefix="$" />
+          </Form.Item>
+          <Form.Item name="model_rpm" label="按模型限速（可选 JSON，留空 = 不限）"
+            tooltip='{"gpt-4o": 10, "gemini-2.5-flash": 60}'
+            rules={[{ validator: (_, v) => { if (!v) return Promise.resolve(); try { JSON.parse(v); return Promise.resolve() } catch { return Promise.reject('不是合法 JSON') } } }]}>
+            <Input.TextArea rows={2} placeholder='{"gpt-4o": 10}' />
           </Form.Item>
           <Form.Item name="allowed_ips" label="IP 白名单（留空 = 不限，支持 CIDR）">
             <Select mode="tags" allowClear placeholder="如 1.2.3.4 或 10.0.0.0/8，回车添加" tokenSeparators={[',', ' ']} />

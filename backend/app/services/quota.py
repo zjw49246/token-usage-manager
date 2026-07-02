@@ -25,6 +25,8 @@ from app.services.credits import apply_credit
 
 # 内存 RPM 计数器：{api_key_id: deque of timestamps}
 _rpm_windows: dict[int, deque] = defaultdict(deque)
+# 按模型 RPM 计数器：{(api_key_id, model): deque}
+_model_rpm_windows: dict[tuple, deque] = defaultdict(deque)
 _rpm_lock = asyncio.Lock()
 
 
@@ -113,15 +115,30 @@ async def check_quota(db: AsyncSession, api_key: ApiKey, model: str) -> None:
 
     # 5. RPM 限速（内存滑动窗口）——放在预扣之前，
     #    这样被限速拒绝的请求不会白白消耗一次调用额度
-    if api_key.max_rpm is not None:
+    model_rpm = (getattr(api_key, "model_rpm", None) or {}).get(model)
+    if api_key.max_rpm is not None or model_rpm is not None:
         async with _rpm_lock:
-            window = _rpm_windows[api_key.id]
             cutoff = now.timestamp() - 60
-            while window and window[0] < cutoff:
-                window.popleft()
-            if len(window) >= api_key.max_rpm:
-                raise HTTPException(status_code=429, detail="Rate limit exceeded (RPM)")
-            window.append(now.timestamp())
+            ts = now.timestamp()
+            # 全局 RPM
+            if api_key.max_rpm is not None:
+                window = _rpm_windows[api_key.id]
+                while window and window[0] < cutoff:
+                    window.popleft()
+                if len(window) >= api_key.max_rpm:
+                    raise HTTPException(status_code=429, detail="Rate limit exceeded (RPM)")
+            # 按模型 RPM
+            if model_rpm is not None:
+                mwindow = _model_rpm_windows[(api_key.id, model)]
+                while mwindow and mwindow[0] < cutoff:
+                    mwindow.popleft()
+                if len(mwindow) >= model_rpm:
+                    raise HTTPException(status_code=429, detail=f"Rate limit exceeded for model '{model}' (RPM)")
+            # 通过后再入窗（避免任一限流触发时污染另一窗口）
+            if api_key.max_rpm is not None:
+                _rpm_windows[api_key.id].append(ts)
+            if model_rpm is not None:
+                _model_rpm_windows[(api_key.id, model)].append(ts)
 
     # 6. 调用次数：原子预扣。带条件的 UPDATE，rowcount==0 说明已达上限。
     #    每个通过校验的请求恰好抢占一个额度，杜绝“事后异步记账”导致的并发绕过。
