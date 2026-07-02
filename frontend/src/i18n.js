@@ -1,0 +1,75 @@
+import { create } from 'zustand'
+
+// 轻量 i18n：zustand 存语言 + 字典 + t()。默认中文，可切英文，持久化到 localStorage。
+const DICT = {
+  zh: {
+    'app.subtitle': '统一多供应商 AI 模型网关',
+    'nav.dashboard': '总览',
+    'nav.keys': 'API Keys',
+    'nav.models': '模型目录',
+    'nav.billing': '额度计费',
+    'nav.members': '成员',
+    'nav.integration': '接入指南',
+    'nav.settings': '设置',
+    'nav.channels': '通道 (超管)',
+    'header.org': '组织',
+    'header.newOrg': '＋ 新建组织',
+    'header.logout': '退出登录',
+    'header.createOrg': '新建组织',
+    'header.orgName': '组织名称',
+    'common.create': '创建',
+    'common.cancel': '取消',
+    'common.save': '保存',
+    'common.delete': '删除',
+    'common.ok': '确定',
+    'auth.login': '登录',
+    'auth.register': '注册',
+    'auth.email': '邮箱',
+    'auth.password': '密码',
+    'auth.name': '姓名',
+    'auth.or': '或',
+    'auth.loginWith': '用 {p} 登录',
+    'auth.registerOk': '注册成功，已为你创建个人组织',
+    'lang.label': '语言',
+  },
+  en: {
+    'app.subtitle': 'Unified multi-provider AI model gateway',
+    'nav.dashboard': 'Overview',
+    'nav.keys': 'API Keys',
+    'nav.models': 'Models',
+    'nav.billing': 'Billing',
+    'nav.members': 'Members',
+    'nav.integration': 'Integration',
+    'nav.settings': 'Settings',
+    'nav.channels': 'Channels (admin)',
+    'header.org': 'Org',
+    'header.newOrg': '＋ New org',
+    'header.logout': 'Log out',
+    'header.createOrg': 'New organization',
+    'header.orgName': 'Organization name',
+    'common.create': 'Create',
+    'common.cancel': 'Cancel',
+    'common.save': 'Save',
+    'common.delete': 'Delete',
+    'common.ok': 'OK',
+    'auth.login': 'Log in',
+    'auth.register': 'Sign up',
+    'auth.email': 'Email',
+    'auth.password': 'Password',
+    'auth.name': 'Name',
+    'auth.or': 'or',
+    'auth.loginWith': 'Continue with {p}',
+    'auth.registerOk': 'Registered — a personal org was created for you',
+    'lang.label': 'Language',
+  },
+}
+
+export const useI18n = create((set, get) => ({
+  lang: localStorage.getItem('lang') || 'zh',
+  setLang: (lang) => { localStorage.setItem('lang', lang); set({ lang }) },
+  t: (key, vars) => {
+    let s = (DICT[get().lang] || DICT.zh)[key] ?? DICT.zh[key] ?? key
+    if (vars) for (const [k, v] of Object.entries(vars)) s = s.replace(`{${k}}`, v)
+    return s
+  },
+}))
