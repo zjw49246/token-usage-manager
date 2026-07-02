@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.database import init_db
-from app.routers import admin, proxy, auth, orgs, catalog, channels, billing, ingress_anthropic, ingress_gemini
+from app.routers import admin, proxy, auth, orgs, catalog, channels, billing, aliases, ingress_anthropic, ingress_gemini
 
 
 async def _seed_if_empty():
@@ -54,6 +54,7 @@ app.include_router(orgs.router)
 app.include_router(catalog.router)
 app.include_router(channels.router)
 app.include_router(billing.router)
+app.include_router(aliases.router)
 app.include_router(admin.router)
 app.include_router(proxy.router)
 app.include_router(ingress_anthropic.router)

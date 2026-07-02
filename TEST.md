@@ -95,6 +95,9 @@ uv run pytest tests/ -v
 | `test_ip_whitelist.py` | 入口也校验 | Anthropic 入口同样校验 IP |
 | `test_metrics.py` | /metrics 暴露 | Prometheus 格式端点 |
 | `test_metrics.py` | 请求后指标递增 | 调用后 tr_requests_total/tr_tokens_total 出现 |
+| `test_aliases.py` | 别名 CRUD + 路由 | 建别名后用别名调用透明改写到目标模型 |
+| `test_aliases.py` | 目标不存在 404 | 目标模型不在目录 404 |
+| `test_aliases.py` | 需超管 | 普通用户 403 |
 
 ## 手动集成测试
 

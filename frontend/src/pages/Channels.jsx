@@ -6,6 +6,7 @@ import {
 import { PlusOutlined } from '@ant-design/icons'
 import {
   listChannels, listChannelProviders, createChannel, updateChannel, deleteChannel, testChannel, listCatalogModels,
+  listAliases, createAlias, deleteAlias,
 } from '../api/index.js'
 import { useAuthStore } from '../stores/authStore.js'
 
@@ -19,17 +20,27 @@ export default function Channels() {
   const [editing, setEditing] = useState(null)
   const [form] = Form.useForm()
 
+  const [aliases, setAliases] = useState([])
+  const [aliasForm] = Form.useForm()
   const load = async () => {
     setLoading(true)
     try {
-      const [ch, pv, md] = await Promise.all([listChannels(), listChannelProviders(), listCatalogModels()])
+      const [ch, pv, md, al] = await Promise.all([listChannels(), listChannelProviders(), listCatalogModels(), listAliases()])
       setRows(ch)
       setProviders(pv.map((p) => ({ value: p.id, label: `${p.name} (${p.litellm_prefix})` })))
       setModels(md.data.map((m) => ({ value: m.id, label: `${m.id} · ${m.provider}` })))
+      setAliases(al)
     } catch (e) {
       if (e.response?.status !== 403) message.error('加载失败')
     } finally { setLoading(false) }
   }
+
+  const addAlias = async () => {
+    const v = await aliasForm.validateFields()
+    try { await createAlias(v); message.success('别名已建'); aliasForm.resetFields(); load() }
+    catch (e) { message.error(e.response?.data?.detail || '失败') }
+  }
+  const rmAlias = async (a) => { await deleteAlias(a); message.success('已删除'); load() }
   useEffect(() => { if (isSuperadmin) load() }, [isSuperadmin])
 
   if (!isSuperadmin) {
@@ -110,6 +121,22 @@ export default function Channels() {
       <Alert type="info" showIcon style={{ marginBottom: 16 }}
         message="同一模型可配多条通道：按优先级分层、层内按权重加权随机；某条失败自动转下一条（max_retries 控制次数）。" />
       <Table columns={columns} dataSource={rows} rowKey="id" loading={loading} size="small" />
+
+      <Card size="small" title="模型别名" style={{ marginTop: 16 }}>
+        <Form form={aliasForm} layout="inline" onFinish={addAlias} style={{ marginBottom: 12 }}>
+          <Form.Item name="alias" rules={[{ required: true }]}><Input placeholder="别名，如 fast" /></Form.Item>
+          <Form.Item name="target_model_id" rules={[{ required: true }]}>
+            <Select showSearch optionFilterProp="label" options={models} placeholder="目标模型" style={{ width: 260 }} />
+          </Form.Item>
+          <Form.Item><Button type="primary" htmlType="submit">添加别名</Button></Form.Item>
+        </Form>
+        <Table size="small" rowKey="alias" pagination={false} dataSource={aliases}
+          columns={[
+            { title: '别名', dataIndex: 'alias' },
+            { title: '→ 目标模型', dataIndex: 'target_model_id' },
+            { title: '操作', render: (_, r) => <Popconfirm title="删除？" onConfirm={() => rmAlias(r.alias)}><Button size="small" danger>删除</Button></Popconfirm> },
+          ]} />
+      </Card>
 
       <Modal title={editing ? '编辑通道' : '新建通道'} open={open} onOk={submit} onCancel={() => setOpen(false)} okText="保存" width={560}>
         <Form form={form} layout="vertical">

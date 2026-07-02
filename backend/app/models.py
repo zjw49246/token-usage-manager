@@ -105,6 +105,16 @@ class ModelCatalog(Base):
     provider: Mapped["Provider"] = relationship(back_populates="models", lazy="noload")
 
 
+class ModelAlias(Base):
+    """模型别名（P22）：alias → 目录中的真实 model_id，调用时透明改写。"""
+    __tablename__ = "model_aliases"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    alias: Mapped[str] = mapped_column(String(150), unique=True, index=True, nullable=False)
+    target_model_id: Mapped[str] = mapped_column(String(150), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+
+
 class Channel(Base):
     """上游通道（P6）：一个模型可由多条通道服务，支持加权负载均衡 + 失败故障转移。
 
