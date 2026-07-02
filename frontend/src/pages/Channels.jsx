@@ -5,7 +5,7 @@ import {
 } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
 import {
-  listChannels, listChannelProviders, createChannel, updateChannel, deleteChannel, listCatalogModels,
+  listChannels, listChannelProviders, createChannel, updateChannel, deleteChannel, testChannel, listCatalogModels,
 } from '../api/index.js'
 import { useAuthStore } from '../stores/authStore.js'
 
@@ -59,6 +59,18 @@ export default function Channels() {
 
   const remove = async (id) => { await deleteChannel(id); message.success('已删除'); load() }
 
+  const [testing, setTesting] = useState(null)
+  const test = async (id) => {
+    setTesting(id)
+    try {
+      const r = await testChannel(id)
+      r.ok ? message.success(`连通 · ${r.latency_ms}ms · ${r.model}`)
+           : message.error(`失败: ${r.error || '未知'}`)
+      load()
+    } catch (e) { message.error(e.response?.data?.detail || '测试失败') }
+    finally { setTesting(null) }
+  }
+
   const columns = [
     { title: '名称', dataIndex: 'name' },
     { title: '供应商', dataIndex: 'provider_id', render: (id) => providers.find(p => p.value === id)?.label || id },
@@ -67,10 +79,20 @@ export default function Channels() {
     { title: '优先级', dataIndex: 'priority' },
     { title: '凭证', dataIndex: 'has_key', render: (v) => v ? <Tag color="green">独立</Tag> : <Tag>用供应商 env</Tag> },
     { title: 'API Base', dataIndex: 'api_base', render: (v) => v || '默认' },
-    { title: '状态', dataIndex: 'enabled', render: (v) => <Tag color={v ? 'green' : 'default'}>{v ? '启用' : '停用'}</Tag> },
+    {
+      title: '状态', key: 'status',
+      render: (_, r) => (
+        <Space size={4}>
+          <Tag color={r.enabled ? 'green' : 'default'}>{r.enabled ? '启用' : '停用'}</Tag>
+          {r.status === 'error' && <Tag color="red">异常</Tag>}
+          {r.status === 'active' && <Tag color="blue">健康</Tag>}
+        </Space>
+      ),
+    },
     {
       title: '操作', render: (_, r) => (
         <Space>
+          <Button size="small" loading={testing === r.id} onClick={() => test(r.id)}>测试</Button>
           <Button size="small" onClick={() => openEdit(r)}>编辑</Button>
           <Popconfirm title="删除该通道？" onConfirm={() => remove(r.id)}>
             <Button size="small" danger>删除</Button>

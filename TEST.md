@@ -84,6 +84,10 @@ uv run pytest tests/ -v
 | `test_audio.py` | TTS 未知模型 404 | 未知模型 404 |
 | `test_video.py` | 视频生成 | /v1/videos/generations 转发+计价 |
 | `test_video.py` | 视频未知模型 404 | 未知模型 404 |
+| `test_channel_health.py` | 通道测试成功 | test 端点连通 → status=active |
+| `test_channel_health.py` | 通道测试失败 | test 端点报错 → status=error |
+| `test_channel_health.py` | 故障自动标记 | 失败通道 status=error，成功通道 active |
+| `test_channel_health.py` | 鉴权错误自动禁用 | 401/403 且开关开时自动 enabled=false |
 
 ## 手动集成测试
 
