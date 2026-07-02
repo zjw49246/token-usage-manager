@@ -66,6 +66,8 @@ uv run pytest tests/ -v
 | `test_stripe.py` | checkout 返回 URL | owner 发起返回支付跳转 URL |
 | `test_stripe.py` | webhook 幂等入账 | 同一支付 ref 只入账一次，余额+50 |
 | `test_stripe.py` | webhook 忽略非充值 | 非充值完成事件不入账 |
+| `test_member_budget.py` | 成员预算回显+强制 | 设成员预算并回显；累计消费超预算返回 429 |
+| `test_member_budget.py` | 无预算不限 | 未设预算的成员可无限调用 |
 
 ## 手动集成测试
 

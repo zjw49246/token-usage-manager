@@ -17,8 +17,10 @@ from sqlalchemy import select, update
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sqlalchemy import func as sqlfunc
+
 from app.config import settings
-from app.models import ApiKey, UsageSummary, UsageRecord, Organization
+from app.models import ApiKey, UsageSummary, UsageRecord, Organization, Membership
 from app.services.credits import apply_credit
 
 # 内存 RPM 计数器：{api_key_id: deque of timestamps}
@@ -70,6 +72,27 @@ async def check_quota(db: AsyncSession, api_key: ApiKey, model: str) -> None:
         )
         if balance is not None and balance <= 0:
             raise HTTPException(status_code=402, detail="Insufficient credits, please top up")
+
+    # 2.6 成员级预算：该 Key 创建者在本组织的累计消费不得超过其 budget_usd
+    if api_key.org_id is not None and api_key.created_by_user_id is not None:
+        budget = await db.scalar(
+            select(Membership.budget_usd).where(
+                Membership.org_id == api_key.org_id,
+                Membership.user_id == api_key.created_by_user_id,
+            )
+        )
+        if budget is not None:
+            spent = await db.scalar(
+                select(sqlfunc.coalesce(sqlfunc.sum(UsageSummary.total_cost_usd), 0.0))
+                .select_from(UsageSummary)
+                .join(ApiKey, ApiKey.id == UsageSummary.api_key_id)
+                .where(
+                    ApiKey.org_id == api_key.org_id,
+                    ApiKey.created_by_user_id == api_key.created_by_user_id,
+                )
+            )
+            if spent is not None and spent >= budget:
+                raise HTTPException(status_code=429, detail="Member budget exceeded")
 
     # 3. 保证 summary 行存在（后续原子操作依赖它）
     await _ensure_summary(db, api_key.id)

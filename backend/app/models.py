@@ -44,6 +44,7 @@ class Membership(Base):
     org_id: Mapped[int] = mapped_column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"), nullable=False, index=True)
     role: Mapped[str] = mapped_column(String(20), nullable=False, default="member")  # owner / admin / member
+    budget_usd: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # 成员级消费上限（null=不限）
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
 
     organization: Mapped["Organization"] = relationship(back_populates="memberships", lazy="noload")
