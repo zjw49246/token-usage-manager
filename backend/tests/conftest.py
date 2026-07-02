@@ -55,6 +55,8 @@ async def _seed_minimal_catalog():
 
 @pytest_asyncio.fixture(autouse=True)
 async def setup_db():
+    from app.services.cache import reset_cache
+    reset_cache()  # 每个测试用全新缓存，避免相同请求跨测试命中
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     await _seed_minimal_catalog()

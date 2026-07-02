@@ -53,6 +53,11 @@ uv run pytest tests/ -v
 | `test_failover.py` | 重试上限 | max_retries 限制最多尝试通道数 |
 | `test_failover.py` | 无通道兼容 | 未配通道时回退单路由仍成功 |
 | `test_failover.py` | 通道管理权限 | 普通用户 403；超管可 CRUD，凭证不回显明文 |
+| `test_cache.py` | 相同请求命中缓存 | 第二次相同请求不打上游 |
+| `test_cache.py` | 不同请求未命中 | 内容不同各打一次上游 |
+| `test_cache.py` | 命中折算计费 | 命中记 cached=True，成本按 multiplier（0=免费），provider=cache，tokens 仍记 |
+| `test_cache.py` | 流式不缓存 | 流式请求两次都打上游 |
+| `test_cache.py` | 关闭缓存 | cache_enabled=false 时每次都打上游 |
 
 ## 手动集成测试
 

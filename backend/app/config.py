@@ -32,6 +32,12 @@ class Settings(BaseSettings):
 
     # 路由（P6）：单次请求最多尝试的通道数（首个 + 故障转移）
     max_retries: int = 2
+
+    # 缓存（P7）：相同请求去重复用；命中按 multiplier 折算成本（0=免费）
+    cache_enabled: bool = True
+    cache_ttl_seconds: int = 300
+    cache_hit_cost_multiplier: float = 0.0
+    redis_url: str = ""  # 空=进程内内存缓存；填 redis://... 用 Redis（多副本共享）
     database_url: str = "sqlite+aiosqlite:///./data/token_manager.db"
     host: str = "0.0.0.0"
     port: int = 8000

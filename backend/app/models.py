@@ -170,6 +170,7 @@ class UsageRecord(Base):
     output_tokens: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     total_tokens: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     cost_usd: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # 按目录单价核算
+    cached: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False, server_default="0")  # 是否缓存命中
     duration_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="success")
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

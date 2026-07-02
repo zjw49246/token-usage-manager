@@ -1,5 +1,20 @@
 # 经验教训沉淀
 
+## token-router 改造 P7：响应缓存（去重复用 + 命中计费）
+
+**要点 / 决策**
+- 只缓存**非流式** chat（流式重放复杂、收益低）；缓存键 = 请求内容（model+messages+采样参数）的 sha256，
+  全局内容寻址、跨租户去重省钱；命中仍按 org 记账但成本 × `cache_hit_cost_multiplier`（默认 0=免费），provider 记 "cache"。
+- 缓存后端抽象：默认进程内内存（带 TTL），配 `REDIS_URL` 则用 Redis（多副本共享）；redis 延迟导入，未装也能跑内存。
+- **测试隔离坑**：缓存默认开启后，很多测试用相同请求体，会跨测试命中导致上游 mock 计数错乱。
+  解决：conftest 的 autouse fixture 里 `reset_cache()`，每个测试用全新缓存。
+
+**以后如何避免**
+- 引入全局共享状态（缓存/连接池/单例）后，测试要有重置钩子，否则测试间会经缓存互相污染。
+- 缓存"相同请求"要精确定义键字段；把 temperature/max_tokens 等采样参数纳入键，避免不同参数复用同一结果。
+
+**commit**: 见本分支（feat/token-router-p7-caching）
+
 ## token-router 改造 P6：负载均衡 + 故障转移（多通道）
 
 **要点 / 决策**
