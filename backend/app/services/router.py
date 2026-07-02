@@ -143,6 +143,35 @@ async def resolve_model(db: AsyncSession, model_id: str) -> ModelRoute:
     return (await resolve_routes(db, model_id))[0]
 
 
+_REASONING_SUFFIX = {
+    "-high": {"reasoning_effort": "high"},
+    "-medium": {"reasoning_effort": "medium"},
+    "-low": {"reasoning_effort": "low"},
+    "-thinking": {"reasoning_effort": "medium"},
+}
+
+
+def _parse_reasoning_suffix(model_id: str) -> tuple[str, dict]:
+    """解析推理后缀：gpt-5-high / claude-...-thinking → (base_model, {reasoning_effort: ...})"""
+    for suffix, params in _REASONING_SUFFIX.items():
+        if model_id.endswith(suffix):
+            return model_id[: -len(suffix)], dict(params)
+    return model_id, {}
+
+
+async def resolve_with_reasoning(db: AsyncSession, model_id: str) -> tuple[list[ModelRoute], dict]:
+    """支持推理后缀的解析：若全名不在目录但去掉后缀的基础模型在，则路由到基础模型并注入 reasoning_effort。"""
+    base, params = _parse_reasoning_suffix(model_id)
+    if params and base != model_id:
+        exists = await db.scalar(select(ModelCatalog.model_id).where(ModelCatalog.model_id == base)) \
+            or await db.scalar(select(ModelAlias.alias).where(ModelAlias.alias == base))
+        # 仅当全名不在目录、基础模型在时才启用后缀
+        full_exists = await db.scalar(select(ModelCatalog.model_id).where(ModelCatalog.model_id == model_id))
+        if exists and not full_exists:
+            return await resolve_routes(db, base), params
+    return await resolve_routes(db, model_id), {}
+
+
 def compute_cost(
     catalog: ModelCatalog, input_tokens: int | None, output_tokens: int | None,
     cached_tokens: int | None = 0,
@@ -166,6 +195,17 @@ def _cached_tokens(usage: dict) -> int:
     """从 usage 提取上游 prompt 缓存读 token（OpenAI/Anthropic 经 litellm 归一到 prompt_tokens_details）"""
     d = usage.get("prompt_tokens_details") or {}
     return d.get("cached_tokens") or 0
+
+
+def _maybe_merge_reasoning(data: dict) -> None:
+    """把响应里的 reasoning_content 合并进 content（<think> 标签），供不支持该字段的客户端使用"""
+    if not settings.merge_reasoning_content:
+        return
+    for choice in data.get("choices") or []:
+        msg = choice.get("message") or {}
+        rc = msg.pop("reasoning_content", None)
+        if rc:
+            msg["content"] = f"<think>{rc}</think>\n{msg.get('content') or ''}"
 
 
 async def _save_usage_bg(
@@ -301,6 +341,7 @@ async def acompletion_once(api_key: ApiKey, routes, body: dict) -> dict:
         duration_ms = int(time.time() * 1000) - start_ms
         data = resp.model_dump(exclude_none=True)
         data["model"] = route.catalog.model_id
+        _maybe_merge_reasoning(data)
         usage = data.get("usage") or {}
         if ckey is not None:
             await get_cache().set(ckey, data, settings.cache_ttl_seconds)

@@ -40,6 +40,8 @@ class Settings(BaseSettings):
     upstream_timeout: int = 600
     # 上游 prompt 缓存读命中的 token 计价折扣（P27，默认 0.25 = 缓存输入按 1/4 价）
     cache_read_price_ratio: float = 0.25
+    # 是否把响应里的 reasoning_content 合并进 content（<think> 标签，P29）
+    merge_reasoning_content: bool = False
 
     # 缓存（P7）：相同请求去重复用；命中按 multiplier 折算成本（0=免费）
     cache_enabled: bool = True
