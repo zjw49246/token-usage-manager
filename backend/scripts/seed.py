@@ -79,9 +79,9 @@ IMAGE_MODELS: list[dict] = [
 ]
 
 # 只收录这些模式的模型（chat 为主，后续期再开 embedding / image）
-ALLOWED_MODES = {"chat", "embedding", "image_generation"}
+ALLOWED_MODES = {"chat", "embedding", "image_generation", "rerank"}
 # litellm mode → 我们目录的 mode
-_MODE_MAP = {"chat": "chat", "embedding": "embedding", "image_generation": "image"}
+_MODE_MAP = {"chat": "chat", "embedding": "embedding", "image_generation": "image", "rerank": "rerank"}
 
 # 过滤掉日期快照、ft、audio/realtime 等长尾命名，保持目录干净
 EXCLUDE_PATTERN = re.compile(

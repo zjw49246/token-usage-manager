@@ -400,6 +400,56 @@ async def route_embeddings(api_key: ApiKey, routes, body: dict) -> JSONResponse:
     return JSONResponse(content=data)
 
 
+async def _route_litellm_json(api_key: ApiKey, routes, body: dict, litellm_fn, strip=("model",)) -> dict:
+    """通用非流式端点执行器（rerank/responses 等）：逐通道故障转移，成本用 litellm.completion_cost 兜底。"""
+    routes = _attempts(_as_routes(routes))
+    start_ms = int(time.time() * 1000)
+    last_exc = None
+    for route in routes:
+        try:
+            kwargs = {k: v for k, v in body.items() if k not in strip}
+            kwargs["model"] = route.upstream_model
+            if route.api_key:
+                kwargs["api_key"] = route.api_key
+            if route.api_base:
+                kwargs["api_base"] = route.api_base
+            resp = await litellm_fn(**kwargs)
+        except Exception as e:
+            last_exc = e
+            continue
+        duration_ms = int(time.time() * 1000) - start_ms
+        data = resp.model_dump(exclude_none=True) if hasattr(resp, "model_dump") else dict(resp)
+        data["model"] = route.catalog.model_id
+        try:
+            cost = litellm.completion_cost(completion_response=resp)
+        except Exception:
+            cost = None
+        u = data.get("usage") or {}
+        asyncio.create_task(_save_usage_bg(
+            api_key, route,
+            u.get("prompt_tokens"), u.get("completion_tokens"), u.get("total_tokens"),
+            duration_ms, cost_override=cost,
+        ))
+        return data
+    asyncio.create_task(_save_usage_bg(
+        api_key, routes[-1], None, None, None,
+        int(time.time() * 1000) - start_ms, "error", str(last_exc)[:500],
+    ))
+    raise _map_litellm_error(last_exc)
+
+
+async def route_rerank(api_key: ApiKey, routes, body: dict) -> JSONResponse:
+    """OpenAI/Cohere 风格 /v1/rerank"""
+    data = await _route_litellm_json(api_key, routes, body, litellm.arerank)
+    return JSONResponse(content=data)
+
+
+async def route_responses(api_key: ApiKey, routes, body: dict) -> JSONResponse:
+    """OpenAI Responses API /v1/responses（非流式）"""
+    data = await _route_litellm_json(api_key, routes, body, litellm.aresponses)
+    return JSONResponse(content=data)
+
+
 async def route_image_generation(api_key: ApiKey, routes, body: dict) -> JSONResponse:
     """OpenAI /v1/images/generations（按张计价）"""
     n = int(body.get("n", 1) or 1)

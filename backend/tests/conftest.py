@@ -59,6 +59,14 @@ async def _seed_minimal_catalog():
                 litellm_model="openai/dall-e-3", mode="image",
                 image_price=0.04, capabilities=["image"],
             ),
+            ModelCatalog(
+                model_id="rerank-v3.5", provider_id=google.id,
+                litellm_model="cohere/rerank-v3.5", mode="rerank", capabilities=["rerank"],
+            ),
+            ModelCatalog(
+                model_id="gpt-5-responses", provider_id=google.id,
+                litellm_model="openai/gpt-5-responses", mode="chat", capabilities=["chat"],
+            ),
         ])
         await db.commit()
 
