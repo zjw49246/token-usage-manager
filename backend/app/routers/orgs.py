@@ -472,3 +472,77 @@ async def org_key_shares(org_id: int, m: Membership = Depends(get_membership), d
         )
     ).all()
     return [KeyTokenShare(name=n, key_prefix=p, tokens=t) for n, p, t in rows]
+
+
+# ── 组织级请求日志 + CSV 导出（P25）────────────────────────────────────────────
+
+def _usage_filters(org_id: int, model: str | None, status: str | None,
+                   start_time: datetime | None, end_time: datetime | None):
+    filters = [UsageRecord.org_id == org_id]
+    if model:
+        filters.append(UsageRecord.model == model)
+    if status:
+        filters.append(UsageRecord.status == status)
+    if start_time:
+        filters.append(UsageRecord.created_at >= start_time)
+    if end_time:
+        filters.append(UsageRecord.created_at <= end_time)
+    return filters
+
+
+@router.get("/{org_id}/usage", response_model=UsageListOut)
+async def org_usage(
+    org_id: int,
+    page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=200),
+    model: str | None = Query(None), status: str | None = Query(None),
+    start_time: datetime | None = Query(None), end_time: datetime | None = Query(None),
+    m: Membership = Depends(get_membership), db: AsyncSession = Depends(get_db),
+):
+    """组织全量请求日志（跨所有 Key），支持按模型/状态/时间过滤"""
+    filters = _usage_filters(org_id, model, status, start_time, end_time)
+    total = (await db.execute(select(func.count()).select_from(UsageRecord).where(and_(*filters)))).scalar_one()
+    records = (
+        await db.execute(
+            select(UsageRecord).where(and_(*filters))
+            .order_by(UsageRecord.created_at.desc())
+            .offset((page - 1) * page_size).limit(page_size)
+        )
+    ).scalars().all()
+    return UsageListOut(
+        items=[UsageRecordOut.model_validate(r) for r in records],
+        total=total, page=page, page_size=page_size,
+    )
+
+
+@router.get("/{org_id}/usage/export")
+async def org_usage_export(
+    org_id: int,
+    model: str | None = Query(None), status: str | None = Query(None),
+    start_time: datetime | None = Query(None), end_time: datetime | None = Query(None),
+    m: Membership = Depends(get_membership), db: AsyncSession = Depends(get_db),
+):
+    """导出组织请求日志为 CSV（最多 5 万行）"""
+    import csv
+    import io
+    from fastapi.responses import Response
+
+    filters = _usage_filters(org_id, model, status, start_time, end_time)
+    records = (
+        await db.execute(
+            select(UsageRecord).where(and_(*filters))
+            .order_by(UsageRecord.created_at.desc()).limit(50000)
+        )
+    ).scalars().all()
+
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(["time", "model", "provider", "input_tokens", "output_tokens",
+                "total_tokens", "cost_usd", "cached", "duration_ms", "status", "error"])
+    for r in records:
+        w.writerow([r.created_at.isoformat(), r.model, r.provider or "", r.input_tokens or "",
+                    r.output_tokens or "", r.total_tokens or "", r.cost_usd if r.cost_usd is not None else "",
+                    int(r.cached), r.duration_ms or "", r.status, (r.error_message or "").replace("\n", " ")])
+    return Response(
+        content=buf.getvalue(), media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=usage-org{org_id}.csv"},
+    )

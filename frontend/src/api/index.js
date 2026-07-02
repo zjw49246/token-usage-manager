@@ -65,6 +65,11 @@ export const getKeyUsage = (orgId, id, params) => api.get(`/orgs/${orgId}/keys/$
 export const getOverview = (orgId) => api.get(`/orgs/${orgId}/stats/overview`).then(r => r.data)
 export const getTrend = (orgId, params) => api.get(`/orgs/${orgId}/stats/trend`, { params }).then(r => r.data)
 export const getKeyShares = (orgId) => api.get(`/orgs/${orgId}/stats/key-shares`).then(r => r.data)
+export const getOrgUsage = (orgId, params) => api.get(`/orgs/${orgId}/usage`, { params }).then(r => r.data)
+export const exportOrgUsageUrl = (orgId, params) => {
+  const qs = new URLSearchParams(Object.fromEntries(Object.entries(params || {}).filter(([, v]) => v))).toString()
+  return `/orgs/${orgId}/usage/export${qs ? '?' + qs : ''}`
+}
 
 // ── Credits / Billing ──
 export const getCredits = (orgId) => api.get(`/orgs/${orgId}/credits`).then(r => r.data)
