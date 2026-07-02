@@ -163,6 +163,12 @@ async def record_usage(
     # 保证 summary 行存在（防御性；正常流程 check_quota 已建好）
     await _ensure_summary(db, api_key_id)
 
+    # 组织价格倍率（P23）：按组织折算成本（在缓存折算之上再乘）
+    if org_id is not None and cost_usd:
+        mult = await db.scalar(select(Organization.price_multiplier).where(Organization.id == org_id))
+        if mult is not None and mult != 1.0:
+            cost_usd = round(cost_usd * mult, 8)
+
     # 写明细
     record = UsageRecord(
         api_key_id=api_key_id,

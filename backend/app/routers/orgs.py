@@ -13,7 +13,7 @@ from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_current_user, get_membership, require_role, ROLE_LEVEL
+from app.dependencies import get_current_user, get_membership, require_role, require_superadmin, ROLE_LEVEL
 from app.models import (
     User, Organization, Membership, ApiKey, UsageRecord, UsageSummary, CreditTransaction,
 )
@@ -87,6 +87,24 @@ async def create_org(body: OrgCreate, user: User = Depends(get_current_user), db
     out = OrgOut.model_validate(org)
     out.role = "owner"
     return out
+
+
+@router.patch("/{org_id}/pricing", response_model=OrgOut)
+async def set_org_pricing(
+    org_id: int, payload: dict,
+    _sa: User = Depends(require_superadmin), db: AsyncSession = Depends(get_db),
+):
+    """超管设置组织价格倍率（>0；<1 折扣，>1 加价）"""
+    org = await db.get(Organization, org_id)
+    if org is None:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    mult = payload.get("price_multiplier")
+    if mult is None or float(mult) <= 0:
+        raise HTTPException(status_code=400, detail="price_multiplier must be > 0")
+    org.price_multiplier = float(mult)
+    await db.commit()
+    await db.refresh(org)
+    return OrgOut.model_validate(org)
 
 
 @router.get("/{org_id}", response_model=OrgOut)

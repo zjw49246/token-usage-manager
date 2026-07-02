@@ -165,6 +165,7 @@ class OrgOut(BaseModel):
     name: str
     slug: str
     credit_balance_usd: float
+    price_multiplier: float = 1.0
     created_at: datetime
     role: Optional[str] = None  # 当前用户在该组织的角色
 

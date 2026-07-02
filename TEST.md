@@ -98,6 +98,8 @@ uv run pytest tests/ -v
 | `test_aliases.py` | 别名 CRUD + 路由 | 建别名后用别名调用透明改写到目标模型 |
 | `test_aliases.py` | 目标不存在 404 | 目标模型不在目录 404 |
 | `test_aliases.py` | 需超管 | 普通用户 403 |
+| `test_price_multiplier.py` | 组织倍率计费 | 设 2× 后成本按倍率折算 |
+| `test_price_multiplier.py` | 需超管 | 普通用户设倍率 403 |
 
 ## 手动集成测试
 
