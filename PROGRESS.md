@@ -1,5 +1,20 @@
 # 经验教训沉淀
 
+## token-router 改造 P10：成员级预算
+
+**要点 / 决策**
+- tokenrouter 宣传「成员/团队/部门」三级预算。我们已有组织级余额 + 每 Key 成本上限，
+  本期只做**成员级**（每用户在组织内累计消费上限）；团队/部门需引入子分组结构，作为更大改动单列。
+- 成员消费 = 该用户在本组织创建的所有 Key 的 usage_summary.total_cost 之和（`created_by_user_id` 关联），
+  在 check_quota 里聚合比对 membership.budget_usd，超则 429。
+- 注意豁免：`/admin/keys` 建的无 org/无 created_by 的 Key 不受成员预算约束，避免影响平台冒烟。
+
+**以后如何避免**
+- 复刻"看起来是一个功能"的东西前，先拆清它的层级（成员/团队/部门是三层），
+  按现有数据模型能低成本覆盖哪层就先做哪层，缺结构的层级明确标注为独立改动，别硬凑。
+
+**commit**: 见本分支（feat/token-router-p10-member-budget）
+
 ## token-router 改造 P9：Stripe 支付
 
 **要点 / 决策**

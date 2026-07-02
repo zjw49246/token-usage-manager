@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Table, Tag, Button, Space, Modal, Form, Input, Select, Popconfirm, message } from 'antd'
+import { Table, Tag, Button, Space, Modal, Form, Input, InputNumber, Select, Popconfirm, message } from 'antd'
 import { UserAddOutlined } from '@ant-design/icons'
 import { listMembers, addMember, updateMemberRole, removeMember } from '../api/index.js'
 import { useAuthStore } from '../stores/authStore.js'
@@ -40,6 +40,11 @@ export default function Members() {
     catch (e) { message.error(e.response?.data?.detail || '更新失败') }
   }
 
+  const onChangeBudget = async (userId, budget_usd) => {
+    try { await updateMemberRole(currentOrgId, userId, { budget_usd: budget_usd ?? 0 }); message.success('预算已更新'); load() }
+    catch (e) { message.error(e.response?.data?.detail || '更新失败') }
+  }
+
   const onRemove = async (userId) => {
     try { await removeMember(currentOrgId, userId); message.success('已移除'); load() }
     catch (e) { message.error(e.response?.data?.detail || '移除失败') }
@@ -56,6 +61,13 @@ export default function Members() {
               options={[{ value: 'member', label: 'member' }, { value: 'admin', label: 'admin' }, { value: 'owner', label: 'owner' }]} />
           : <Tag color={ROLE_COLOR[role]}>{role}</Tag>
       ),
+    },
+    {
+      title: '成员预算 (USD)', dataIndex: 'budget_usd',
+      render: (v, r) => myRole === 'owner'
+        ? <InputNumber size="small" min={0} step={1} defaultValue={v} placeholder="不限" style={{ width: 110 }}
+            onBlur={(e) => { const n = Number(e.target.value); if (n !== (v ?? 0)) onChangeBudget(r.user_id, n) }} />
+        : (v != null ? `$${v}` : '不限'),
     },
     ...(canManage ? [{
       title: '操作',
@@ -88,6 +100,9 @@ export default function Members() {
               { value: 'admin', label: 'admin（管理 Key/成员）' },
               ...(myRole === 'owner' ? [{ value: 'owner', label: 'owner（完全控制）' }] : []),
             ]} />
+          </Form.Item>
+          <Form.Item name="budget_usd" label="成员预算 USD（可选，留空=不限）">
+            <InputNumber min={0.01} step={10} style={{ width: '100%' }} prefix="$" placeholder="该成员消费上限" />
           </Form.Item>
         </Form>
       </Modal>

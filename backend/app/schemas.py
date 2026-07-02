@@ -166,10 +166,12 @@ class OrgOut(BaseModel):
 class MemberAdd(BaseModel):
     email: str
     role: str = Field("member", pattern="^(member|admin|owner)$")
+    budget_usd: Optional[float] = Field(None, gt=0)
 
 
 class MemberUpdate(BaseModel):
-    role: str = Field(..., pattern="^(member|admin|owner)$")
+    role: Optional[str] = Field(None, pattern="^(member|admin|owner)$")
+    budget_usd: Optional[float] = Field(None, ge=0)  # 0 或 null 视为不限
 
 
 class MemberOut(BaseModel):
@@ -178,6 +180,7 @@ class MemberOut(BaseModel):
     email: str
     name: str
     role: str
+    budget_usd: Optional[float] = None
     created_at: datetime
 
 

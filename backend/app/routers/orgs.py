@@ -108,7 +108,8 @@ async def list_members(org_id: int, m: Membership = Depends(get_membership), db:
         )
     ).all()
     return [
-        MemberOut(id=mem.id, user_id=u.id, email=u.email, name=u.name, role=mem.role, created_at=mem.created_at)
+        MemberOut(id=mem.id, user_id=u.id, email=u.email, name=u.name, role=mem.role,
+                  budget_usd=mem.budget_usd, created_at=mem.created_at)
         for mem, u in rows
     ]
 
@@ -128,11 +129,12 @@ async def add_member(
     ).scalar_one_or_none()
     if exists:
         raise HTTPException(status_code=409, detail="Already a member")
-    mem = Membership(org_id=org_id, user_id=user.id, role=body.role)
+    mem = Membership(org_id=org_id, user_id=user.id, role=body.role, budget_usd=body.budget_usd)
     db.add(mem)
     await db.commit()
     await db.refresh(mem)
-    return MemberOut(id=mem.id, user_id=user.id, email=user.email, name=user.name, role=mem.role, created_at=mem.created_at)
+    return MemberOut(id=mem.id, user_id=user.id, email=user.email, name=user.name, role=mem.role,
+                     budget_usd=mem.budget_usd, created_at=mem.created_at)
 
 
 @router.patch("/{org_id}/members/{user_id}", response_model=MemberOut)
@@ -145,8 +147,8 @@ async def update_member_role(
     ).scalar_one_or_none()
     if mem is None:
         raise HTTPException(status_code=404, detail="Member not found")
-    # 不能把最后一个 owner 降级
-    if mem.role == "owner" and body.role != "owner":
+    # 改角色：不能把最后一个 owner 降级
+    if body.role is not None and mem.role == "owner" and body.role != "owner":
         owner_count = (
             await db.execute(
                 select(func.count()).select_from(Membership)
@@ -155,11 +157,15 @@ async def update_member_role(
         ).scalar_one()
         if owner_count <= 1:
             raise HTTPException(status_code=409, detail="Cannot demote the last owner")
-    mem.role = body.role
+    if body.role is not None:
+        mem.role = body.role
+    if body.budget_usd is not None:
+        mem.budget_usd = body.budget_usd or None  # 0 视为不限
     await db.commit()
     await db.refresh(mem)
     user = await db.get(User, user_id)
-    return MemberOut(id=mem.id, user_id=user.id, email=user.email, name=user.name, role=mem.role, created_at=mem.created_at)
+    return MemberOut(id=mem.id, user_id=user.id, email=user.email, name=user.name, role=mem.role,
+                     budget_usd=mem.budget_usd, created_at=mem.created_at)
 
 
 @router.delete("/{org_id}/members/{user_id}", status_code=204)
