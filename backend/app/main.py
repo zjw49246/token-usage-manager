@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.database import init_db
-from app.routers import admin, proxy, auth, orgs, catalog
+from app.routers import admin, proxy, auth, orgs, catalog, ingress_anthropic, ingress_gemini
 
 
 @asynccontextmanager
@@ -37,6 +37,8 @@ app.include_router(orgs.router)
 app.include_router(catalog.router)
 app.include_router(admin.router)
 app.include_router(proxy.router)
+app.include_router(ingress_anthropic.router)
+app.include_router(ingress_gemini.router)
 
 # 挂载前端静态文件（build 后）
 _frontend_dist = Path(__file__).parent.parent.parent / "frontend" / "dist"

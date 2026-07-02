@@ -15,7 +15,12 @@
   平台目录（providers/model_catalog）+ 原有（api_keys/usage_records/usage_summary，已加 org_id/cost 列）
 - **路由内核**（P1 后）：`services/router.py` 用 LiteLLM 数据驱动路由（model_catalog → litellm_model
   + provider.api_base + 凭证 env），旧 `services/proxy.py` 已删除；成本按目录单价核算并原子累加；
-  Vertex AI 模式暂不支持（当前部署未使用，需要时经 litellm vertex_ai 前缀恢复）
+  Vertex AI 模式暂不支持（当前部署未使用，需要时经 litellm vertex_ai 前缀恢复）。
+  核心暴露 `acompletion_once` / `aiter_openai_chunks`（产出 OpenAI 结果 + 统一记账），供三入口复用
+- **三入口协议**（P3 后）：`dialects/{anthropic,gemini}.py` 做方言↔OpenAI 双向翻译，
+  `routers/ingress_{anthropic,gemini}.py` 暴露 `POST /v1/messages`（Claude）和
+  `/v1beta/models/{m}:generateContent[|:streamGenerateContent]`（Gemini，含流式）；
+  `dependencies.get_api_key_flexible` 兼容 Bearer / x-api-key / x-goog-api-key / ?key
 - **鉴权**（P2 后）：三平面——① 用户 JWT（`/auth` 注册登录，`services/user_auth.py` bcrypt+pyjwt）；
   ② 组织 RBAC（`dependencies.require_role`，member<admin<owner，超管视作 owner）；
   ③ 代理 API Key（`tum_`，归属 org）+ 平台超管 `ADMIN_TOKEN`（`/admin`）。

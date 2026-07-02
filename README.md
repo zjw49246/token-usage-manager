@@ -10,13 +10,18 @@ USD 成本限额、可用模型、时间区间和 RPM 限速。模型路由由 *
 ## 架构
 
 ```
-客户端 App ──→ Token Usage Manager (FastAPI) ──→ LiteLLM ──→ OpenAI / Anthropic / Gemini / DeepSeek / …
-               │  API Key 校验
-               │  配额检查（次数/Token/USD 成本/RPM）
-               │  模型目录（model_catalog：价格/上下文窗口）
-               │  用量与成本记录 (SQLite)
-               └─ React 前端 (前端 build 后由 FastAPI 托管)
+OpenAI SDK    ─┐
+Anthropic SDK ─┼─→ TokenRouter (FastAPI) ──→ LiteLLM ──→ OpenAI / Anthropic / Gemini / DeepSeek / …
+Gemini SDK    ─┘   │  三入口方言翻译（/v1/chat/completions · /v1/messages · /v1beta）
+                   │  多租户鉴权（JWT + 组织 RBAC）+ API Key
+                   │  配额检查（次数/Token/USD 成本/RPM）
+                   │  模型目录（model_catalog：价格/上下文窗口）
+                   │  用量与成本记录 (SQLite)
+                   └─ React 前端 (前端 build 后由 FastAPI 托管)
 ```
+
+**三种入口，一套 Key**：OpenAI、Anthropic(Claude)、Gemini 三家 SDK 都能把 base_url 指过来，
+无需改代码即可路由到目录里的任意模型（见「接入指南」页）。
 
 启动前需 seed 模型目录（否则 `/v1/models` 为空）：
 
