@@ -109,7 +109,12 @@ export default function KeyDetail() {
     { title: '合计', dataIndex: 'total_tokens', render: fmt },
     { title: '成本', dataIndex: 'cost_usd', render: v => v != null ? `$${v.toFixed(6)}` : '—' },
     { title: '耗时', dataIndex: 'duration_ms', render: v => v ? `${v}ms` : '—' },
-    { title: '状态', dataIndex: 'status', render: v => <Tag color={v === 'success' ? 'green' : 'red'}>{v}</Tag> },
+    {
+      title: '状态', key: 'status',
+      render: (_, r) => r.cached
+        ? <Tag color="cyan">缓存命中</Tag>
+        : <Tag color={r.status === 'success' ? 'green' : 'red'}>{r.status}</Tag>,
+    },
   ]
 
   return (

@@ -22,6 +22,7 @@ from app.config import settings
 from app.database import AsyncSessionLocal
 from app.models import ModelCatalog, Provider, ApiKey, Channel
 from app.services.quota import record_usage
+from app.services.cache import cache_key, get_cache
 
 # LiteLLM 全局行为：不落盘、不打调用日志
 litellm.drop_params = True  # 上游不认识的参数自动丢弃而不是报错
@@ -158,17 +159,24 @@ async def _save_usage_bg(
     duration_ms: int,
     status: str = "success",
     error_message: str | None = None,
+    cached: bool = False,
 ) -> None:
-    """后台异步记账（明细 + token/cost 原子累加），不阻塞响应"""
+    """后台异步记账（明细 + token/cost 原子累加），不阻塞响应。
+
+    缓存命中时按 cache_hit_cost_multiplier 折算成本（默认 0=免费）。
+    """
     cost = compute_cost(route.catalog, input_tokens, output_tokens)
+    if cached and cost is not None:
+        cost = round(cost * settings.cache_hit_cost_multiplier, 8)
     async with AsyncSessionLocal() as db:
         await record_usage(
             db, api_key.id, route.catalog.model_id,
             input_tokens, output_tokens, total_tokens,
             duration_ms, status, error_message,
-            provider=route.provider_name,
+            provider="cache" if cached else route.provider_name,
             cost_usd=cost,
             org_id=api_key.org_id,
+            cached=cached,
         )
 
 
@@ -208,9 +216,25 @@ def _attempts(routes: list[ModelRoute]) -> list[ModelRoute]:
 
 
 async def acompletion_once(api_key: ApiKey, routes, body: dict) -> dict:
-    """非流式：按候选路由顺序尝试（失败即换下一通道），首个成功即返回并记账"""
+    """非流式：缓存命中直接返回；否则按候选路由顺序尝试（失败即换下一通道），首个成功即返回并记账"""
     routes = _attempts(_as_routes(routes))
+    model_id = routes[0].catalog.model_id
     start_ms = int(time.time() * 1000)
+
+    # 缓存查询（相同请求去重复用）
+    ckey = None
+    if settings.cache_enabled:
+        ckey = cache_key(model_id, body)
+        cached_data = await get_cache().get(ckey)
+        if cached_data is not None:
+            usage = cached_data.get("usage") or {}
+            asyncio.create_task(_save_usage_bg(
+                api_key, routes[0],
+                usage.get("prompt_tokens"), usage.get("completion_tokens"), usage.get("total_tokens"),
+                int(time.time() * 1000) - start_ms, cached=True,
+            ))
+            return cached_data
+
     last_exc = None
     for route in routes:
         try:
@@ -222,6 +246,8 @@ async def acompletion_once(api_key: ApiKey, routes, body: dict) -> dict:
         data = resp.model_dump(exclude_none=True)
         data["model"] = route.catalog.model_id
         usage = data.get("usage") or {}
+        if ckey is not None:
+            await get_cache().set(ckey, data, settings.cache_ttl_seconds)
         asyncio.create_task(_save_usage_bg(
             api_key, route,
             usage.get("prompt_tokens"), usage.get("completion_tokens"), usage.get("total_tokens"),
