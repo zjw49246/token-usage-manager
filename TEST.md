@@ -62,6 +62,10 @@ uv run pytest tests/ -v
 | `test_endpoints.py` | image 按张计价 | /v1/images/generations 按 n×image_price 计费 |
 | `test_endpoints.py` | 目录暴露 mode | catalog 返回 mode/image_price（chat/embedding/image）|
 | `test_endpoints.py` | 端点未知模型 404 | embeddings 未知模型 404 |
+| `test_stripe.py` | 未配置拦截 | 未配 Stripe 时 checkout 返回 400 |
+| `test_stripe.py` | checkout 返回 URL | owner 发起返回支付跳转 URL |
+| `test_stripe.py` | webhook 幂等入账 | 同一支付 ref 只入账一次，余额+50 |
+| `test_stripe.py` | webhook 忽略非充值 | 非充值完成事件不入账 |
 
 ## 手动集成测试
 

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Card, Statistic, Button, Table, Tag, Modal, Form, InputNumber, Input, message, Row, Col } from 'antd'
-import { DollarOutlined, PlusOutlined } from '@ant-design/icons'
+import { DollarOutlined, PlusOutlined, CreditCardOutlined } from '@ant-design/icons'
 import dayjs from 'dayjs'
-import { getCredits, topupCredits } from '../api/index.js'
+import { getCredits, topupCredits, createCheckout } from '../api/index.js'
 import { useAuthStore } from '../stores/authStore.js'
 
 const TYPE_META = {
@@ -38,6 +38,20 @@ export default function Billing() {
     } catch (e) { message.error(e.response?.data?.detail || '充值失败') }
   }
 
+  const onStripe = async () => {
+    const values = await form.validateFields()
+    try {
+      const { checkout_url } = await createCheckout(currentOrgId, {
+        amount_usd: values.amount_usd,
+        success_url: window.location.href,
+        cancel_url: window.location.href,
+      })
+      window.location.href = checkout_url  // 跳转到 Stripe 支付页
+    } catch (e) {
+      message.error(e.response?.data?.detail || 'Stripe 未配置，请用手动充值')
+    }
+  }
+
   const columns = [
     { title: '时间', dataIndex: 'created_at', render: v => dayjs(v).format('YYYY-MM-DD HH:mm:ss') },
     { title: '类型', dataIndex: 'type', render: t => <Tag color={TYPE_META[t]?.color}>{TYPE_META[t]?.label || t}</Tag> },
@@ -67,12 +81,19 @@ export default function Billing() {
           pagination={{ pageSize: 20 }} />
       </Card>
 
-      <Modal title="充值额度" open={open} onOk={onTopup} onCancel={() => setOpen(false)} okText="充值">
+      <Modal
+        title="充值额度" open={open} onCancel={() => setOpen(false)}
+        footer={[
+          <Button key="cancel" onClick={() => setOpen(false)}>取消</Button>,
+          <Button key="stripe" icon={<CreditCardOutlined />} onClick={onStripe}>Stripe 在线支付</Button>,
+          <Button key="manual" type="primary" onClick={onTopup}>手动入账</Button>,
+        ]}
+      >
         <Form form={form} layout="vertical">
           <Form.Item name="amount_usd" label="金额 (USD)" rules={[{ required: true }]}>
             <InputNumber min={0.01} step={10} style={{ width: '100%' }} prefix="$" placeholder="如：50" />
           </Form.Item>
-          <Form.Item name="note" label="备注（可选）">
+          <Form.Item name="note" label="备注（手动入账用，可选）">
             <Input placeholder="如：季度预算" maxLength={100} />
           </Form.Item>
         </Form>

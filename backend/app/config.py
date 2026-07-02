@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     cache_ttl_seconds: int = 300
     cache_hit_cost_multiplier: float = 0.0
     redis_url: str = ""  # 空=进程内内存缓存；填 redis://... 用 Redis（多副本共享）
+
+    # 支付（P9 Stripe）：留空则只支持手动充值
+    stripe_secret_key: str = ""
+    stripe_webhook_secret: str = ""
+    stripe_currency: str = "usd"
     database_url: str = "sqlite+aiosqlite:///./data/token_manager.db"
     host: str = "0.0.0.0"
     port: int = 8000

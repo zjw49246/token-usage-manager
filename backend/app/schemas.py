@@ -204,6 +204,16 @@ class CreditBalanceOut(BaseModel):
     transactions: list[CreditTransactionOut]
 
 
+class CheckoutIn(BaseModel):
+    amount_usd: float = Field(..., gt=0, le=100000)
+    success_url: str
+    cancel_url: str
+
+
+class CheckoutOut(BaseModel):
+    checkout_url: str
+
+
 # ── 上游通道（P6 负载均衡/故障转移）─────────────────────────────────────────────
 
 class ChannelCreate(BaseModel):

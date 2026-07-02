@@ -22,10 +22,11 @@ from app.schemas import (
     ApiKeyCreate, ApiKeyUpdate, ApiKeyOut, ApiKeyCreated,
     UsageSummaryOut, UsageRecordOut, UsageListOut, OverviewStats,
     TrendPoint, TrendStats, KeyTokenShare,
-    CreditTopup, CreditTransactionOut, CreditBalanceOut,
+    CreditTopup, CreditTransactionOut, CreditBalanceOut, CheckoutIn, CheckoutOut,
 )
 from app.services.auth import generate_api_key
 from app.services.credits import apply_credit
+from app.services import payments
 from app.config import settings
 
 router = APIRouter(prefix="/orgs", tags=["orgs"])
@@ -303,9 +304,21 @@ async def topup_credits(
     org_id: int, body: CreditTopup,
     m: Membership = Depends(require_role("owner")), db: AsyncSession = Depends(get_db),
 ):
-    """充值（owner）。真实支付接入前为手动入账。"""
+    """手动充值（owner）。真实支付走 /credits/checkout。"""
     await apply_credit(db, org_id, body.amount_usd, type="topup", ref=body.note or "manual")
     return await get_credits(org_id, m, db)
+
+
+@router.post("/{org_id}/credits/checkout", response_model=CheckoutOut)
+async def create_checkout(
+    org_id: int, body: CheckoutIn,
+    m: Membership = Depends(require_role("owner")), db: AsyncSession = Depends(get_db),
+):
+    """发起 Stripe 在线充值，返回支付跳转 URL（支付完成由 webhook 入账）。"""
+    if not payments.stripe_enabled():
+        raise HTTPException(status_code=400, detail="Stripe not configured; use manual top-up")
+    url = payments.create_checkout_session(org_id, body.amount_usd, body.success_url, body.cancel_url)
+    return CheckoutOut(checkout_url=url)
 
 
 # ── org 隔离的统计 ─────────────────────────────────────────────────────────────
