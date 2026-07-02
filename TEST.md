@@ -38,6 +38,12 @@ uv run pytest tests/ -v
 | `test_multitenant.py` | RBAC admin 授权 | admin 不能授予 owner 角色 |
 | `test_multitenant.py` | 最后一个 owner 保护 | 不能降级/移除最后一个 owner |
 | `test_multitenant.py` | org 统计隔离 | overview 只统计本组织，含成本字段 |
+| `test_ingress_dialects.py` | Anthropic 非流式 | /v1/messages 返回 Anthropic 形状，system→OpenAI messages，成本记账 |
+| `test_ingress_dialects.py` | Anthropic 流式 | message_start/content_block_delta/message_stop 事件，文本拼接正确 |
+| `test_ingress_dialects.py` | Gemini 非流式 | generateContent 返回 candidates/usageMetadata，config 翻译 |
+| `test_ingress_dialects.py` | Gemini 流式 | streamGenerateContent SSE，尾块带 usageMetadata |
+| `test_ingress_dialects.py` | 入口未知模型 404 | 三入口共用目录解析 |
+| `test_ingress_dialects.py` | 入口缺 Key 401 | x-api-key/x-goog-api-key/?key/Bearer 都没有时拒绝 |
 
 ## 手动集成测试
 

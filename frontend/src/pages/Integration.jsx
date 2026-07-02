@@ -30,7 +30,51 @@ function CodeBlock({ code, language }) {
   )
 }
 
-const BASE_URL = window.location.origin + '/v1'
+const ORIGIN = window.location.origin
+const BASE_URL = ORIGIN + '/v1'
+
+const anthropicPy = `from anthropic import Anthropic
+
+client = Anthropic(
+    base_url="${ORIGIN}",        # 指向 TokenRouter
+    api_key="tum_你的API Key",
+)
+
+msg = client.messages.create(
+    model="claude-sonnet-4-6",   # 也可填 gemini-2.5-flash 等任意目录模型
+    max_tokens=1024,
+    messages=[{"role": "user", "content": "你好"}],
+)
+print(msg.content[0].text)`
+
+const geminiPy = `from google import genai
+
+client = genai.Client(
+    api_key="tum_你的API Key",
+    http_options={"base_url": "${ORIGIN}"},   # 指向 TokenRouter
+)
+
+resp = client.models.generate_content(
+    model="gemini-2.5-flash",
+    contents="你好",
+)
+print(resp.text)`
+
+const anthropicCurl = `curl ${ORIGIN}/v1/messages \\
+  -H "x-api-key: tum_你的API Key" \\
+  -H "content-type: application/json" \\
+  -d '{
+    "model": "claude-sonnet-4-6",
+    "max_tokens": 1024,
+    "messages": [{"role": "user", "content": "Hello!"}]
+  }'`
+
+const geminiCurl = `curl "${ORIGIN}/v1beta/models/gemini-2.5-flash:generateContent" \\
+  -H "x-goog-api-key: tum_你的API Key" \\
+  -H "content-type: application/json" \\
+  -d '{
+    "contents": [{"role": "user", "parts": [{"text": "Hello!"}]}]
+  }'`
 
 const pythonAsync = `from openai import AsyncOpenAI
 
@@ -147,39 +191,28 @@ export default function Integration() {
     <div style={{ maxWidth: 860 }}>
       <Alert
         type="info"
-        message="本服务兼容 OpenAI API 格式，只需替换 base_url 和 api_key 即可接入，无需修改现有代码逻辑。"
+        message="一个 Key 三种入口：同时兼容 OpenAI、Anthropic(Claude)、Gemini 三种 API 格式。把任意一家 SDK 的 base_url 指过来即可，无需改代码即可切换到目录里的任意模型。"
         style={{ marginBottom: 20 }}
       />
 
       <Card title="接入信息" style={{ marginBottom: 20 }}>
         <Paragraph>
-          <Text strong>代理地址：</Text>
-          <Text code copyable>{BASE_URL}</Text>
+          <Text strong>入口地址（按 SDK 选一种）：</Text>
+          <div style={{ marginTop: 8, lineHeight: 2 }}>
+            <div><Tag color="green">OpenAI</Tag><Text code copyable>{BASE_URL}</Text></div>
+            <div><Tag color="volcano">Anthropic</Tag><Text code copyable>{ORIGIN}</Text> <Text type="secondary">→ POST /v1/messages</Text></div>
+            <div><Tag color="geekblue">Gemini</Tag><Text code copyable>{ORIGIN}</Text> <Text type="secondary">→ /v1beta/models/&#123;model&#125;:generateContent</Text></div>
+          </div>
         </Paragraph>
         <Paragraph>
           <Text strong>API Key：</Text>
           <Text type="secondary">在 <a href="/keys">API Keys</a> 页面创建，格式为 </Text>
           <Text code>tum_xxxxxxxx...</Text>
         </Paragraph>
-        <Paragraph>
-          <Text strong>默认模型：</Text>
-          <Text code>gemini-2.5-flash</Text>
-          <Text type="secondary">（不指定 model 时使用）</Text>
-        </Paragraph>
         <Paragraph style={{ marginBottom: 0 }}>
           <Text strong>可用模型：</Text>
-          <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            <Tag color="purple">gemini-3.1-pro-preview</Tag>
-            <Tag color="purple">gemini-3-flash-preview</Tag>
-            <Tag color="purple">gemini-3.1-flash-lite-preview</Tag>
-            <Tag color="blue">gemini-2.5-pro</Tag>
-            <Tag color="blue">gemini-2.5-flash</Tag>
-            <Tag color="blue">gemini-2.5-flash-lite</Tag>
-            <Tag color="default">gemini-2.0-flash</Tag>
-            <Tag color="green">deepseek-v3-250324</Tag>
-            <Tag color="green">deepseek-r1-250528</Tag>
-            <Tag color="green">deepseek-v3-2-251201</Tag>
-          </div>
+          <Text type="secondary">目录含 OpenAI / Anthropic / Google / DeepSeek / Mistral / Groq / xAI 等 170+ 模型，
+          创建 Key 时可搜索选择；调用时 <Text code>model</Text> 填目录中的模型名即可。</Text>
         </Paragraph>
       </Card>
 
@@ -221,8 +254,36 @@ export default function Integration() {
             ),
           },
           {
+            key: 'anthropic',
+            label: 'Anthropic (Claude)',
+            children: (
+              <div>
+                <Alert type="info" showIcon style={{ marginBottom: 16 }}
+                  message="Anthropic Messages 格式：POST /v1/messages，鉴权用 x-api-key 或 Authorization: Bearer。" />
+                <Title level={5}>Python (anthropic SDK)</Title>
+                <CodeBlock code={anthropicPy} language="python" />
+                <Title level={5}>cURL</Title>
+                <CodeBlock code={anthropicCurl} language="bash" />
+              </div>
+            ),
+          },
+          {
+            key: 'gemini',
+            label: 'Gemini',
+            children: (
+              <div>
+                <Alert type="info" showIcon style={{ marginBottom: 16 }}
+                  message="Gemini 原生格式：/v1beta/models/{model}:generateContent，鉴权用 x-goog-api-key 或 ?key=。" />
+                <Title level={5}>Python (google-genai SDK)</Title>
+                <CodeBlock code={geminiPy} language="python" />
+                <Title level={5}>cURL</Title>
+                <CodeBlock code={geminiCurl} language="bash" />
+              </div>
+            ),
+          },
+          {
             key: 'curl',
-            label: 'cURL',
+            label: 'cURL (OpenAI)',
             children: (
               <div>
                 <Title level={5}>基本请求</Title>
@@ -245,8 +306,8 @@ export default function Integration() {
           <li>每个 Key 可独立配置模型白名单、Token 上限、调用次数上限、RPM 限速和生效时间</li>
           <li>超出配额后请求将返回 <Text code>429</Text> 错误</li>
           <li>Key 被停用后请求将返回 <Text code>403</Text> 错误</li>
-          <li>流式和非流式请求均会自动统计 Token 用量</li>
-          <li>所有请求参数与 <a href="https://platform.openai.com/docs/api-reference/chat" target="_blank" rel="noopener noreferrer">OpenAI Chat Completions API</a> 完全一致</li>
+          <li>流式和非流式请求均会自动统计 Token 用量与 USD 成本</li>
+          <li>三种入口（OpenAI / Anthropic / Gemini）共用同一套 Key、配额与计费</li>
         </ul>
       </Card>
     </div>

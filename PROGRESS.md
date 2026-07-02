@@ -86,3 +86,23 @@
 - 密钥类默认值就按算法最低长度给，避免「示例值」触发安全警告或被直接带上生产。
 
 **commit**: 见本分支（feat/token-router-p2a-multitenant-backend）
+
+## token-router 改造 P3：三入口方言翻译
+
+**遇到的问题 / 关键决策**
+- 三入口（OpenAI/Anthropic/Gemini）若各写一套「调 LiteLLM + 记账」会三份重复且记账口径易漂移。
+- Gemini 的 action 在 path 里（`models/{m}:generateContent`），需要 FastAPI 路由能识别 `:action` 后缀。
+- 三家 SDK 鉴权头不同：OpenAI/Anthropic 用 Bearer、Anthropic 还用 x-api-key、Gemini 用 x-goog-api-key/?key。
+
+**如何解决**
+- 把路由核心抽成 `acompletion_once` / `aiter_openai_chunks`（只产出 OpenAI 规范结果 + 统一在 finally 记账），
+  三入口的方言层只做「请求方言→OpenAI」和「OpenAI→响应方言」纯翻译，零重复记账逻辑。
+- FastAPI 路由 `"/models/{model}:generateContent"` 字面后缀可用（Starlette 正则 `[^/]+` 会回溯匹配尾部字面量）。
+- `get_api_key_flexible` 依赖从 Bearer/x-api-key/x-goog-api-key/?key 多来源取 Key，兼容三家 SDK 习惯。
+- 流式各写一套 SSE 事件映射（Anthropic 的 message_start/content_block_delta/...；Gemini 的 alt=sse 风格）。
+
+**以后如何避免**
+- 多入口/多协议一律「单一核心 + 边缘翻译」，绝不让记账/配额逻辑散落到每个入口。
+- 覆盖外部 API 兼容层时，用 mock 上游的方式对「翻译正确性」做单测（形状/字段/usage），不依赖真实上游。
+
+**commit**: 见本分支（feat/token-router-p3-tri-ingress）

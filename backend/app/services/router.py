@@ -130,20 +130,17 @@ def _map_litellm_error(e: Exception) -> HTTPException:
     return HTTPException(status_code=status, detail=f"Upstream error: {message}")
 
 
-async def route_chat_completion(
-    api_key: ApiKey, route: ModelRoute, body: dict
-) -> StreamingResponse | JSONResponse:
-    """把 chat/completions 请求经 LiteLLM 转发到上游（流式/非流式）"""
-    is_stream = bool(body.get("stream", False))
+# ══════════════════ 可复用核心（产出 OpenAI 规范结果 + 记账）══════════════════
+# 三种入口方言（OpenAI / Anthropic / Gemini）都建立在这两个函数之上：
+#   acompletion_once  → 非流式，返回 OpenAI 响应 dict
+#   aiter_openai_chunks → 流式，逐块 yield OpenAI chunk dict
+# 记账（token/成本）在核心统一完成，方言层只负责格式转换。
+
+
+async def acompletion_once(api_key: ApiKey, route: ModelRoute, body: dict) -> dict:
+    """非流式：调用 LiteLLM，返回 OpenAI 响应 dict（对外回显公开模型名），并记账"""
     kwargs = _completion_kwargs(route, body)
     start_ms = int(time.time() * 1000)
-
-    if is_stream:
-        return StreamingResponse(
-            _stream_completion(api_key, route, kwargs, start_ms),
-            media_type="text/event-stream",
-        )
-
     try:
         resp = await litellm.acompletion(**kwargs, stream=False)
     except Exception as e:
@@ -155,24 +152,23 @@ async def route_chat_completion(
 
     duration_ms = int(time.time() * 1000) - start_ms
     data = resp.model_dump(exclude_none=True)
-    data["model"] = route.catalog.model_id  # 对外回显公开模型名
+    data["model"] = route.catalog.model_id
     usage = data.get("usage") or {}
     asyncio.create_task(_save_usage_bg(
         api_key, route,
         usage.get("prompt_tokens"), usage.get("completion_tokens"), usage.get("total_tokens"),
         duration_ms,
     ))
-    return JSONResponse(content=data)
+    return data
 
 
-async def _stream_completion(
-    api_key: ApiKey, route: ModelRoute, kwargs: dict, start_ms: int
-) -> AsyncGenerator[bytes, None]:
-    """流式：把 LiteLLM chunk 重新序列化为 OpenAI SSE，并从尾部 chunk 提取 usage"""
+async def aiter_openai_chunks(api_key: ApiKey, route: ModelRoute, body: dict) -> AsyncGenerator[dict, None]:
+    """流式：逐块 yield OpenAI chunk dict（尾块含 usage）；异常向上抛，记账在 finally 统一完成"""
+    kwargs = _completion_kwargs(route, body)
+    start_ms = int(time.time() * 1000)
     inp = out = total = None
     status, error_msg = "success", None
     try:
-        # include_usage 让支持的上游在最后一个 chunk 返回用量
         stream = await litellm.acompletion(
             **kwargs, stream=True, stream_options={"include_usage": True},
         )
@@ -184,14 +180,37 @@ async def _stream_completion(
                 inp = usage.get("prompt_tokens", inp)
                 out = usage.get("completion_tokens", out)
                 total = usage.get("total_tokens", total)
+            yield data
+    except Exception as e:
+        status, error_msg = "error", str(e)[:500]
+        raise
+    finally:
+        duration_ms = int(time.time() * 1000) - start_ms
+        asyncio.create_task(_save_usage_bg(
+            api_key, route, inp, out, total, duration_ms, status, error_msg,
+        ))
+
+
+# ══════════════════ OpenAI 入口格式化 ══════════════════
+
+
+async def _openai_sse(api_key: ApiKey, route: ModelRoute, body: dict) -> AsyncGenerator[bytes, None]:
+    try:
+        async for data in aiter_openai_chunks(api_key, route, body):
             yield f"data: {json.dumps(data, ensure_ascii=False)}\n\n".encode()
         yield b"data: [DONE]\n\n"
     except Exception as e:
-        status, error_msg = "error", str(e)[:500]
         err = {"error": {"message": str(e), "type": "upstream_error"}}
         yield f"data: {json.dumps(err, ensure_ascii=False)}\n\n".encode()
 
-    duration_ms = int(time.time() * 1000) - start_ms
-    asyncio.create_task(_save_usage_bg(
-        api_key, route, inp, out, total, duration_ms, status, error_msg,
-    ))
+
+async def route_chat_completion(
+    api_key: ApiKey, route: ModelRoute, body: dict
+) -> StreamingResponse | JSONResponse:
+    """OpenAI chat/completions 入口（流式/非流式）"""
+    if bool(body.get("stream", False)):
+        return StreamingResponse(
+            _openai_sse(api_key, route, body),
+            media_type="text/event-stream",
+        )
+    return JSONResponse(content=await acompletion_once(api_key, route, body))

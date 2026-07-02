@@ -21,6 +21,30 @@ async def require_admin(authorization: str = Header(...)):
     return token
 
 
+async def get_api_key_flexible(
+    authorization: str | None = Header(None),
+    x_api_key: str | None = Header(None),
+    x_goog_api_key: str | None = Header(None),
+    key: str | None = None,
+    db: AsyncSession = Depends(get_db),
+):
+    """多来源取代理 API Key（兼容三家 SDK 的鉴权习惯）：
+    - OpenAI/Anthropic：Authorization: Bearer <key>
+    - Anthropic：x-api-key: <key>
+    - Gemini：x-goog-api-key: <key> 或 ?key=<key>
+    """
+    raw = None
+    if authorization and authorization.startswith("Bearer "):
+        raw = authorization.removeprefix("Bearer ").strip()
+    raw = raw or x_api_key or x_goog_api_key or key
+    if not raw:
+        raise HTTPException(status_code=401, detail="Missing API key")
+    api_key = await verify_api_key(db, raw)
+    if api_key is None:
+        raise HTTPException(status_code=401, detail="Invalid API key")
+    return api_key
+
+
 async def get_current_user(
     authorization: str = Header(...),
     db: AsyncSession = Depends(get_db),
