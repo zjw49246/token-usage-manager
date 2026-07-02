@@ -170,6 +170,7 @@ async def record_usage(
     cost_usd: float | None = None,
     org_id: int | None = None,
     cached: bool = False,
+    cached_tokens: int | None = None,
 ) -> None:
     """写 usage_records 明细 + 原子累加 token/cost 用量，供后台 Task 调用。
 
@@ -197,6 +198,7 @@ async def record_usage(
         total_tokens=total_tokens or 0,
         cost_usd=cost_usd,
         cached=cached,
+        cached_tokens=cached_tokens,
         duration_ms=duration_ms,
         status=status,
         error_message=error_message,

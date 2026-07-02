@@ -77,6 +77,7 @@ class UsageRecordOut(BaseModel):
     total_tokens: Optional[int]
     cost_usd: Optional[float] = None
     cached: bool = False
+    cached_tokens: Optional[int] = None
     duration_ms: Optional[int]
     status: str
     error_message: Optional[str]
