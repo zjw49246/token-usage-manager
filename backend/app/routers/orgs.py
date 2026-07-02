@@ -234,6 +234,7 @@ async def create_org_key(
         allowed_models=body.allowed_models,
         max_total_tokens=body.max_total_tokens, max_calls=body.max_calls,
         max_rpm=body.max_rpm, max_cost_usd=body.max_cost_usd,
+        allowed_ips=body.allowed_ips,
         valid_from=body.valid_from, valid_until=body.valid_until,
     )
     db.add(key)

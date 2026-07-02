@@ -12,6 +12,7 @@ class ApiKeyCreate(BaseModel):
     max_calls: Optional[int] = Field(None, ge=1)
     max_rpm: Optional[int] = Field(None, ge=1)
     max_cost_usd: Optional[float] = Field(None, gt=0)
+    allowed_ips: Optional[list[str]] = None
     valid_from: Optional[datetime] = None
     valid_until: Optional[datetime] = None
 
@@ -24,6 +25,7 @@ class ApiKeyUpdate(BaseModel):
     max_calls: Optional[int] = Field(None, ge=1)
     max_rpm: Optional[int] = Field(None, ge=1)
     max_cost_usd: Optional[float] = Field(None, gt=0)
+    allowed_ips: Optional[list[str]] = None
     valid_from: Optional[datetime] = None
     valid_until: Optional[datetime] = None
 
@@ -45,6 +47,7 @@ class ApiKeyOut(BaseModel):
     max_calls: Optional[int]
     max_rpm: Optional[int]
     max_cost_usd: Optional[float] = None
+    allowed_ips: Optional[list[str]] = None
     valid_from: Optional[datetime]
     valid_until: Optional[datetime]
     created_at: datetime

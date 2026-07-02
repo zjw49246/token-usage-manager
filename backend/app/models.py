@@ -151,6 +151,7 @@ class ApiKey(Base):
     max_calls: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)           # null = 不限
     max_rpm: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)             # null = 不限
     max_cost_usd: Mapped[Optional[float]] = mapped_column(Float, nullable=True)        # null = 不限（USD 限额）
+    allowed_ips: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)           # null = 不限；IP/CIDR 白名单
     valid_from: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)    # null = 不限
     valid_until: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)   # null = 不限
 
