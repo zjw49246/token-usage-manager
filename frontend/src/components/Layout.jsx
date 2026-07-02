@@ -2,6 +2,7 @@ import { Layout as AntLayout, Menu, Typography, Select, Dropdown, Avatar, Space,
 import {
   DashboardOutlined, KeyOutlined, CodeOutlined, SettingOutlined,
   TeamOutlined, UserOutlined, LogoutOutlined, DownOutlined,
+  AppstoreOutlined, DollarOutlined,
 } from '@ant-design/icons'
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
@@ -13,6 +14,8 @@ const { Sider, Header, Content } = AntLayout
 const menuItems = [
   { key: '/dashboard', icon: <DashboardOutlined />, label: '总览' },
   { key: '/keys', icon: <KeyOutlined />, label: 'API Keys' },
+  { key: '/models', icon: <AppstoreOutlined />, label: '模型目录' },
+  { key: '/billing', icon: <DollarOutlined />, label: '额度计费' },
   { key: '/members', icon: <TeamOutlined />, label: '成员' },
   { key: '/integration', icon: <CodeOutlined />, label: '接入指南' },
   { key: '/settings', icon: <SettingOutlined />, label: '设置' },

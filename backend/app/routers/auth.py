@@ -13,6 +13,8 @@ from app.services.user_auth import (
     hash_password, verify_password,
     create_access_token, create_refresh_token, decode_token,
 )
+from app.services.credits import apply_credit
+from app.config import settings
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -37,6 +39,9 @@ async def register(body: RegisterIn, db: AsyncSession = Depends(get_db)):
     db.add(org)
     await db.flush()
     db.add(Membership(org_id=org.id, user_id=user.id, role="owner"))
+    # 赠送启动额度
+    if settings.welcome_credit_usd > 0:
+        await apply_credit(db, org.id, settings.welcome_credit_usd, type="grant", ref="welcome", commit=False)
     await db.commit()
 
     return TokenPair(

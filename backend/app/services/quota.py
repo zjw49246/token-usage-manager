@@ -17,7 +17,9 @@ from sqlalchemy import select, update
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import ApiKey, UsageSummary, UsageRecord
+from app.config import settings
+from app.models import ApiKey, UsageSummary, UsageRecord, Organization
+from app.services.credits import apply_credit
 
 # 内存 RPM 计数器：{api_key_id: deque of timestamps}
 _rpm_windows: dict[int, deque] = defaultdict(deque)
@@ -60,6 +62,14 @@ async def check_quota(db: AsyncSession, api_key: ApiKey, model: str) -> None:
     # 2. 模型白名单（只读判断）
     if api_key.allowed_models is not None and model not in api_key.allowed_models:
         raise HTTPException(status_code=403, detail=f"Model '{model}' not allowed for this key")
+
+    # 2.5 组织额度闸门：余额 <= 0 拒绝（预付费模式）
+    if settings.enforce_credit_balance and api_key.org_id is not None:
+        balance = await db.scalar(
+            select(Organization.credit_balance_usd).where(Organization.id == api_key.org_id)
+        )
+        if balance is not None and balance <= 0:
+            raise HTTPException(status_code=402, detail="Insufficient credits, please top up")
 
     # 3. 保证 summary 行存在（后续原子操作依赖它）
     await _ensure_summary(db, api_key.id)
@@ -155,4 +165,10 @@ async def record_usage(
             last_call_at=_now_utc(),
         )
     )
+    await db.flush()
+
+    # 组织额度扣减 + 台账（有成本且归属组织时）
+    if org_id is not None and cost_usd:
+        await apply_credit(db, org_id, -cost_usd, type="usage", ref=str(record.id), commit=False)
+
     await db.commit()

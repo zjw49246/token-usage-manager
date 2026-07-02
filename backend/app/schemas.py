@@ -178,3 +178,26 @@ class MemberOut(BaseModel):
     name: str
     role: str
     created_at: datetime
+
+
+# ── 计费 / 额度（P4）──────────────────────────────────────────────────────────
+
+class CreditTopup(BaseModel):
+    amount_usd: float = Field(..., gt=0, le=100000)
+    note: Optional[str] = Field(None, max_length=100)
+
+
+class CreditTransactionOut(BaseModel):
+    id: int
+    amount_usd: float
+    type: str
+    ref: Optional[str]
+    balance_after: float
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class CreditBalanceOut(BaseModel):
+    balance_usd: float
+    transactions: list[CreditTransactionOut]

@@ -44,6 +44,10 @@ uv run pytest tests/ -v
 | `test_ingress_dialects.py` | Gemini 流式 | streamGenerateContent SSE，尾块带 usageMetadata |
 | `test_ingress_dialects.py` | 入口未知模型 404 | 三入口共用目录解析 |
 | `test_ingress_dialects.py` | 入口缺 Key 401 | x-api-key/x-goog-api-key/?key/Bearer 都没有时拒绝 |
+| `test_billing.py` | 启动额度赠送 | 注册即赠送 welcome_credit_usd，有 grant 台账 |
+| `test_billing.py` | 充值权限 | owner 充值成功并记 topup；member 充值 403 |
+| `test_billing.py` | 欠额闸门 | 余额<=0 时调用返回 402 |
+| `test_billing.py` | 消费扣减台账 | 调用后余额按成本减少，生成 usage 台账 |
 
 ## 手动集成测试
 

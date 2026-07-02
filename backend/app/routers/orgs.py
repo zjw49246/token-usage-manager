@@ -15,15 +15,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.dependencies import get_current_user, get_membership, require_role, ROLE_LEVEL
 from app.models import (
-    User, Organization, Membership, ApiKey, UsageRecord, UsageSummary,
+    User, Organization, Membership, ApiKey, UsageRecord, UsageSummary, CreditTransaction,
 )
 from app.schemas import (
     OrgCreate, OrgOut, MemberAdd, MemberUpdate, MemberOut,
     ApiKeyCreate, ApiKeyUpdate, ApiKeyOut, ApiKeyCreated,
     UsageSummaryOut, UsageRecordOut, UsageListOut, OverviewStats,
     TrendPoint, TrendStats, KeyTokenShare,
+    CreditTopup, CreditTransactionOut, CreditBalanceOut,
 )
 from app.services.auth import generate_api_key
+from app.services.credits import apply_credit
+from app.config import settings
 
 router = APIRouter(prefix="/orgs", tags=["orgs"])
 
@@ -72,6 +75,8 @@ async def create_org(body: OrgCreate, user: User = Depends(get_current_user), db
     db.add(org)
     await db.flush()
     db.add(Membership(org_id=org.id, user_id=user.id, role="owner"))
+    if settings.welcome_credit_usd > 0:
+        await apply_credit(db, org.id, settings.welcome_credit_usd, type="grant", ref="welcome", commit=False)
     await db.commit()
     await db.refresh(org)
     out = OrgOut.model_validate(org)
@@ -272,6 +277,35 @@ async def org_key_usage(
         items=[UsageRecordOut.model_validate(r) for r in records],
         total=total, page=page, page_size=page_size,
     )
+
+
+# ── 计费 / 额度 ────────────────────────────────────────────────────────────────
+
+@router.get("/{org_id}/credits", response_model=CreditBalanceOut)
+async def get_credits(org_id: int, m: Membership = Depends(get_membership), db: AsyncSession = Depends(get_db)):
+    org = await db.get(Organization, org_id)
+    if org is None:
+        raise HTTPException(status_code=404, detail="Organization not found")
+    txns = (
+        await db.execute(
+            select(CreditTransaction).where(CreditTransaction.org_id == org_id)
+            .order_by(CreditTransaction.created_at.desc()).limit(100)
+        )
+    ).scalars().all()
+    return CreditBalanceOut(
+        balance_usd=round(org.credit_balance_usd, 6),
+        transactions=[CreditTransactionOut.model_validate(t) for t in txns],
+    )
+
+
+@router.post("/{org_id}/credits", response_model=CreditBalanceOut)
+async def topup_credits(
+    org_id: int, body: CreditTopup,
+    m: Membership = Depends(require_role("owner")), db: AsyncSession = Depends(get_db),
+):
+    """充值（owner）。真实支付接入前为手动入账。"""
+    await apply_credit(db, org_id, body.amount_usd, type="topup", ref=body.note or "manual")
+    return await get_credits(org_id, m, db)
 
 
 # ── org 隔离的统计 ─────────────────────────────────────────────────────────────
