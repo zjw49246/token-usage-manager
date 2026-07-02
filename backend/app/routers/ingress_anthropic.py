@@ -32,17 +32,17 @@ async def anthropic_messages(
     if not model:
         raise HTTPException(status_code=400, detail="Missing 'model'")
 
-    route = await core.resolve_model(db, model)
+    routes = await core.resolve_routes(db, model)
     await check_quota(db, api_key, model)
 
     openai_body = dialect.anthropic_to_openai(body)
 
     if body.get("stream"):
-        chunks = core.aiter_openai_chunks(api_key, route, openai_body)
+        chunks = core.aiter_openai_chunks(api_key, routes, openai_body)
         return StreamingResponse(
             dialect.openai_chunks_to_anthropic_sse(chunks, model),
             media_type="text/event-stream",
         )
 
-    data = await core.acompletion_once(api_key, route, openai_body)
+    data = await core.acompletion_once(api_key, routes, openai_body)
     return JSONResponse(content=dialect.openai_to_anthropic(data, model))

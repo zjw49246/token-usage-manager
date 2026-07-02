@@ -102,6 +102,30 @@ class ModelCatalog(Base):
     provider: Mapped["Provider"] = relationship(back_populates="models", lazy="noload")
 
 
+class Channel(Base):
+    """上游通道（P6）：一个模型可由多条通道服务，支持加权负载均衡 + 失败故障转移。
+
+    每条通道 = 具体上游路由（供应商 + 凭证 + api_base + 服务的模型集）。
+    路由时：找出服务该模型的启用通道 → 按 priority 分层、层内按 weight 加权随机 → 逐条重试。
+    """
+    __tablename__ = "channels"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    provider_id: Mapped[int] = mapped_column(Integer, ForeignKey("providers.id"), nullable=False, index=True)
+    api_key: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)  # 上游凭证；空=回退 provider.credential_env
+    api_base: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)  # 覆盖；空=用 provider.api_base
+    models: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)      # 本通道服务的公开 model_id 列表
+    model_map: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)   # {公开名: 上游 litellm 全名} 覆盖
+    weight: Mapped[int] = mapped_column(Integer, default=1, nullable=False)       # 加权随机权重
+    priority: Mapped[int] = mapped_column(Integer, default=0, nullable=False)     # 优先级，高者先试
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    status: Mapped[str] = mapped_column(String(20), default="active", nullable=False)  # active / error / disabled
+    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
+
+    provider: Mapped["Provider"] = relationship(lazy="noload")
+
+
 # ══════════════════ API Key 与用量（租户级）══════════════════
 
 

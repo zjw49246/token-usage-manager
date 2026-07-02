@@ -14,10 +14,11 @@
 - **Seed**：`uv run python -m scripts.seed` 灌供应商注册表 + 模型目录（价格来自 litellm.model_cost）+ 默认组织回填
 - **数据模型**（P0 后）：多租户（organizations/users/memberships/credit_transactions）+
   平台目录（providers/model_catalog）+ 原有（api_keys/usage_records/usage_summary，已加 org_id/cost 列）
-- **路由内核**（P1 后）：`services/router.py` 用 LiteLLM 数据驱动路由（model_catalog → litellm_model
-  + provider.api_base + 凭证 env），旧 `services/proxy.py` 已删除；成本按目录单价核算并原子累加；
-  Vertex AI 模式暂不支持（当前部署未使用，需要时经 litellm vertex_ai 前缀恢复）。
-  核心暴露 `acompletion_once` / `aiter_openai_chunks`（产出 OpenAI 结果 + 统一记账），供三入口复用
+- **路由内核**（P1/P6 后）：`services/router.py` 用 LiteLLM 数据驱动路由；成本按目录单价核算并原子累加。
+  核心 `acompletion_once` / `aiter_openai_chunks` 接受**有序候选路由列表**，逐条尝试实现负载均衡+故障转移；
+  `resolve_routes` 优先用 `channels` 表（priority 分层 + weight 加权随机），无通道则回退单路由（向后兼容）。
+  `max_retries` 控制尝试上限。通道管理见 `routers/channels.py`（超管 `require_superadmin`）；
+  用 `POST /admin/superadmin {email}`（ADMIN_TOKEN）bootstrap 超管。旧 `services/proxy.py` 已删
 - **三入口协议**（P3 后）：`dialects/{anthropic,gemini}.py` 做方言↔OpenAI 双向翻译，
   `routers/ingress_{anthropic,gemini}.py` 暴露 `POST /v1/messages`（Claude）和
   `/v1beta/models/{m}:generateContent[|:streamGenerateContent]`（Gemini，含流式）；

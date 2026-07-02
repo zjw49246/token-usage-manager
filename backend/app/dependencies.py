@@ -61,6 +61,13 @@ async def get_current_user(
     return user
 
 
+async def require_superadmin(user: User = Depends(get_current_user)) -> User:
+    """平台超管（is_superadmin）才能访问，用于通道/供应商等平台级管理"""
+    if not user.is_superadmin:
+        raise HTTPException(status_code=403, detail="Superadmin only")
+    return user
+
+
 async def get_membership(
     org_id: int = Path(...),
     user: User = Depends(get_current_user),

@@ -201,3 +201,46 @@ class CreditTransactionOut(BaseModel):
 class CreditBalanceOut(BaseModel):
     balance_usd: float
     transactions: list[CreditTransactionOut]
+
+
+# ── 上游通道（P6 负载均衡/故障转移）─────────────────────────────────────────────
+
+class ChannelCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    provider_id: int
+    api_key: Optional[str] = None
+    api_base: Optional[str] = None
+    models: Optional[list[str]] = None
+    model_map: Optional[dict] = None
+    weight: int = Field(1, ge=1)
+    priority: int = Field(0)
+    enabled: bool = True
+
+
+class ChannelUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    api_key: Optional[str] = None
+    api_base: Optional[str] = None
+    models: Optional[list[str]] = None
+    model_map: Optional[dict] = None
+    weight: Optional[int] = Field(None, ge=1)
+    priority: Optional[int] = None
+    enabled: Optional[bool] = None
+    status: Optional[str] = None
+
+
+class ChannelOut(BaseModel):
+    id: int
+    name: str
+    provider_id: int
+    api_base: Optional[str]
+    models: Optional[list[str]]
+    model_map: Optional[dict]
+    weight: int
+    priority: int
+    enabled: bool
+    status: str
+    created_at: datetime
+    has_key: bool = False  # 是否配了独立凭证（不回显明文）
+
+    model_config = {"from_attributes": True}

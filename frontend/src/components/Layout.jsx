@@ -2,7 +2,7 @@ import { Layout as AntLayout, Menu, Typography, Select, Dropdown, Avatar, Space,
 import {
   DashboardOutlined, KeyOutlined, CodeOutlined, SettingOutlined,
   TeamOutlined, UserOutlined, LogoutOutlined, DownOutlined,
-  AppstoreOutlined, DollarOutlined,
+  AppstoreOutlined, DollarOutlined, ClusterOutlined,
 } from '@ant-design/icons'
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
@@ -11,7 +11,7 @@ import { createOrg, listOrgs } from '../api/index.js'
 
 const { Sider, Header, Content } = AntLayout
 
-const menuItems = [
+const baseMenu = [
   { key: '/dashboard', icon: <DashboardOutlined />, label: '总览' },
   { key: '/keys', icon: <KeyOutlined />, label: 'API Keys' },
   { key: '/models', icon: <AppstoreOutlined />, label: '模型目录' },
@@ -20,6 +20,7 @@ const menuItems = [
   { key: '/integration', icon: <CodeOutlined />, label: '接入指南' },
   { key: '/settings', icon: <SettingOutlined />, label: '设置' },
 ]
+const superadminMenu = { key: '/channels', icon: <ClusterOutlined />, label: '通道 (超管)' }
 
 export default function Layout({ children }) {
   const navigate = useNavigate()
@@ -28,6 +29,7 @@ export default function Layout({ children }) {
   const { user, orgs, currentOrgId, setCurrentOrg, setOrgs, logout } = useAuthStore()
   const [newOrgOpen, setNewOrgOpen] = useState(false)
   const [form] = Form.useForm()
+  const menuItems = user?.is_superadmin ? [...baseMenu, superadminMenu] : baseMenu
 
   const onCreateOrg = async () => {
     const values = await form.validateFields()
