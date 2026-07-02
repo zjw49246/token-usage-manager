@@ -21,6 +21,7 @@ from app.schemas import (
     OrgCreate, OrgOut, MemberAdd, MemberUpdate, MemberOut,
     ApiKeyCreate, ApiKeyUpdate, ApiKeyOut, ApiKeyCreated,
     UsageSummaryOut, UsageRecordOut, UsageListOut, OverviewStats,
+    TrendPoint, TrendStats, KeyTokenShare,
 )
 from app.services.auth import generate_api_key
 
@@ -194,6 +195,13 @@ async def list_org_keys(org_id: int, m: Membership = Depends(get_membership), db
     return [_key_to_out(k, summaries.get(k.id)) for k in keys]
 
 
+@router.get("/{org_id}/keys/{key_id}", response_model=ApiKeyOut)
+async def get_org_key(org_id: int, key_id: int, m: Membership = Depends(get_membership), db: AsyncSession = Depends(get_db)):
+    key = await _get_org_key(db, org_id, key_id)
+    summary = await db.get(UsageSummary, key_id)
+    return _key_to_out(key, summary)
+
+
 @router.post("/{org_id}/keys", response_model=ApiKeyCreated, status_code=201)
 async def create_org_key(
     org_id: int, body: ApiKeyCreate,
@@ -312,3 +320,41 @@ async def org_overview(org_id: int, m: Membership = Depends(get_membership), db:
         total_cost_usd=round(total_cost, 6), today_cost_usd=round(today_cost, 6),
         active_keys=active_keys, total_keys=total_keys,
     )
+
+
+@router.get("/{org_id}/stats/trend", response_model=TrendStats)
+async def org_trend(
+    org_id: int,
+    granularity: str = Query("day", pattern="^(hour|day)$"),
+    days: int = Query(7, ge=1, le=30),
+    m: Membership = Depends(get_membership), db: AsyncSession = Depends(get_db),
+):
+    from collections import defaultdict
+    since = _now_utc() - timedelta(days=days)
+    rows = (
+        await db.execute(
+            select(UsageRecord.created_at, UsageRecord.total_tokens, UsageRecord.cost_usd)
+            .where(UsageRecord.org_id == org_id, UsageRecord.created_at >= since)
+            .order_by(UsageRecord.created_at)
+        )
+    ).all()
+    buckets: dict[str, dict] = defaultdict(lambda: {"tokens": 0, "calls": 0})
+    for created_at, tokens, _cost in rows:
+        key = created_at.strftime("%Y-%m-%d %H:00") if granularity == "hour" else created_at.strftime("%Y-%m-%d")
+        buckets[key]["tokens"] += tokens or 0
+        buckets[key]["calls"] += 1
+    points = [TrendPoint(time=k, tokens=v["tokens"], calls=v["calls"]) for k, v in sorted(buckets.items())]
+    return TrendStats(points=points)
+
+
+@router.get("/{org_id}/stats/key-shares", response_model=list[KeyTokenShare])
+async def org_key_shares(org_id: int, m: Membership = Depends(get_membership), db: AsyncSession = Depends(get_db)):
+    rows = (
+        await db.execute(
+            select(ApiKey.name, ApiKey.key_prefix, UsageSummary.total_tokens_used)
+            .join(UsageSummary, ApiKey.id == UsageSummary.api_key_id)
+            .where(ApiKey.org_id == org_id)
+            .order_by(UsageSummary.total_tokens_used.desc())
+        )
+    ).all()
+    return [KeyTokenShare(name=n, key_prefix=p, tokens=t) for n, p, t in rows]

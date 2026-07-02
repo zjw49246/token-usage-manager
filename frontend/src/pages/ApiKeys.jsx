@@ -4,6 +4,7 @@ import { PlusOutlined, EyeOutlined, DeleteOutlined, StopOutlined, PlayCircleOutl
 import { useNavigate } from 'react-router-dom'
 import dayjs from 'dayjs'
 import { listKeys, deleteKey, updateKey } from '../api/index.js'
+import { useAuthStore } from '../stores/authStore.js'
 import CreateKeyModal from '../components/CreateKeyModal.jsx'
 
 function fmt(n) {
@@ -24,15 +25,18 @@ function TokenProgress({ used, max }) {
 }
 
 export default function ApiKeys() {
+  const { currentOrgId, currentOrg } = useAuthStore()
+  const canManage = ['owner', 'admin'].includes(currentOrg()?.role)
   const [keys, setKeys] = useState([])
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
   const navigate = useNavigate()
 
   const load = async () => {
+    if (!currentOrgId) return
     setLoading(true)
     try {
-      setKeys(await listKeys())
+      setKeys(await listKeys(currentOrgId))
     } catch (e) {
       message.error('加载失败')
     } finally {
@@ -40,16 +44,16 @@ export default function ApiKeys() {
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [currentOrgId])
 
   const handleToggle = async (record) => {
-    await updateKey(record.id, { is_active: !record.is_active })
+    await updateKey(currentOrgId, record.id, { is_active: !record.is_active })
     message.success(record.is_active ? '已停用' : '已启用')
     load()
   }
 
   const handleDelete = async (id) => {
-    await deleteKey(id)
+    await deleteKey(currentOrgId, id)
     message.success('已删除')
     load()
   }
@@ -72,6 +76,15 @@ export default function ApiKeys() {
         return r.max_calls
           ? `${fmt(used)} / ${fmt(r.max_calls)}`
           : `${fmt(used)} / 不限`
+      }
+    },
+    {
+      title: '成本 (USD)', key: 'cost',
+      render: (_, r) => {
+        const used = r.usage?.total_cost_usd ?? 0
+        return r.max_cost_usd
+          ? `$${used.toFixed(4)} / $${r.max_cost_usd}`
+          : `$${used.toFixed(4)}`
       }
     },
     {
@@ -100,13 +113,16 @@ export default function ApiKeys() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-        <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
-          创建 API Key
-        </Button>
-      </div>
+      {canManage && (
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setModalOpen(true)}>
+            创建 API Key
+          </Button>
+        </div>
+      )}
       <Table columns={columns} dataSource={keys} rowKey="id" loading={loading} />
       <CreateKeyModal
+        orgId={currentOrgId}
         open={modalOpen}
         onClose={() => { setModalOpen(false); load() }}
         onCreated={() => load()}
