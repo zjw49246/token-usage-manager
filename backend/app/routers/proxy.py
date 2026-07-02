@@ -70,9 +70,11 @@ async def chat_completions(
     if not model:
         raise HTTPException(status_code=400, detail="Missing 'model' in request body")
 
-    # 目录解析（未知/停用模型 404）→ 配额（含原子预扣）→ LiteLLM 路由（多通道故障转移）
-    routes = await model_router.resolve_routes(db, model)
+    # 目录解析（含推理后缀）→ 配额（含原子预扣）→ LiteLLM 路由（多通道故障转移）
+    routes, reasoning = await model_router.resolve_with_reasoning(db, model)
     await check_quota(db, api_key, model)
+    if reasoning:
+        body = {**body, **reasoning}
     return await model_router.route_chat_completion(api_key, routes, body)
 
 

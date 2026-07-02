@@ -84,6 +84,9 @@ uv run pytest tests/ -v
 | `test_cache_tokens.py` | 无缓存全价 | 无缓存 token 时全价计费 |
 | `test_channel_monitor.py` | 成功率计数 | 真实流量成功/失败计入通道计数 |
 | `test_channel_monitor.py` | 巡检全部 | test-all 巡检所有启用通道，列表带 success_rate |
+| `test_reasoning.py` | 推理后缀 | model-low/-high/-thinking 注入 reasoning_effort 路由到基础模型 |
+| `test_reasoning.py` | 后缀基础模型缺失404 | base 不在目录时 404 |
+| `test_reasoning.py` | reasoning→think | 开关开时 reasoning_content 合并为 <think> |
 | `test_cli.py` | 登录/建Key/用量/充值 | CLI 对 ASGI app 跑通登录→建 Key→用量→充值→余额 |
 | `test_cli.py` | models 命令 | 列出模型并计数 |
 | `test_cli.py` | config 命令 | 设置 base_url |
