@@ -27,6 +27,17 @@ PROVIDERS: dict[str, tuple[str, str | None, str]] = {
     "xai":       ("xai",       None, "XAI_API_KEY"),
     # 火山 Ark（OpenAI 兼容端点）：现有部署的 DeepSeek 走这里，保证行为不变
     "volcengine-ark": ("openai", "https://ark.cn-beijing.volces.com/api/v3", "DEEPSEEK_API_KEY"),
+    # 聚合器 / 更多单密钥供应商（P14，扩到 300+ 模型）
+    "openrouter":  ("openrouter",  None, "OPENROUTER_API_KEY"),
+    "fireworks":   ("fireworks_ai", None, "FIREWORKS_API_KEY"),
+    "together":    ("together_ai",  None, "TOGETHER_API_KEY"),
+    "deepinfra":   ("deepinfra",   None, "DEEPINFRA_API_KEY"),
+    "novita":      ("novita",      None, "NOVITA_API_KEY"),
+    "perplexity":  ("perplexity",  None, "PERPLEXITY_API_KEY"),
+    "moonshot":    ("moonshot",    None, "MOONSHOT_API_KEY"),
+    "nebius":      ("nebius",      None, "NEBIUS_API_KEY"),
+    "cohere":      ("cohere",      None, "COHERE_API_KEY"),
+    "voyage":      ("voyage",      None, "VOYAGE_API_KEY"),
 }
 
 # litellm_provider -> 我们的 provider name
@@ -38,6 +49,17 @@ LITELLM_PROVIDER_MAP = {
     "mistral": "mistral",
     "groq": "groq",
     "xai": "xai",
+    "openrouter": "openrouter",
+    "fireworks_ai": "fireworks",
+    "together_ai": "together",
+    "deepinfra": "deepinfra",
+    "novita": "novita",
+    "perplexity": "perplexity",
+    "moonshot": "moonshot",
+    "nebius": "nebius",
+    "cohere": "cohere",
+    "cohere_chat": "cohere",
+    "voyage": "voyage",
 }
 
 # 现有部署的遗留模型（火山 Ark 的 DeepSeek 命名 litellm 价格表里没有，手工给价）。
