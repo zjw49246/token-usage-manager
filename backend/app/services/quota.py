@@ -197,3 +197,11 @@ async def record_usage(
         await apply_credit(db, org_id, -cost_usd, type="usage", ref=str(record.id), commit=False)
 
     await db.commit()
+
+    # Prometheus 指标（不影响主流程）
+    from app.services import metrics
+    metrics.observe(
+        model=model, provider=provider, status=status, cached=cached,
+        input_tokens=input_tokens, output_tokens=output_tokens,
+        cost_usd=cost_usd, duration_ms=duration_ms,
+    )

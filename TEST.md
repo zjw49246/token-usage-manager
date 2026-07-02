@@ -93,6 +93,8 @@ uv run pytest tests/ -v
 | `test_ip_whitelist.py` | IP 白名单放行/拦截 | 命中 IP/CIDR 放行，其它 403 |
 | `test_ip_whitelist.py` | 无白名单不限 | 未设白名单任意 IP 放行 |
 | `test_ip_whitelist.py` | 入口也校验 | Anthropic 入口同样校验 IP |
+| `test_metrics.py` | /metrics 暴露 | Prometheus 格式端点 |
+| `test_metrics.py` | 请求后指标递增 | 调用后 tr_requests_total/tr_tokens_total 出现 |
 
 ## 手动集成测试
 
