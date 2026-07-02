@@ -274,6 +274,9 @@ class ChannelOut(BaseModel):
     priority: int
     enabled: bool
     status: str
+    success_count: int = 0
+    error_count: int = 0
+    success_rate: Optional[float] = None
     created_at: datetime
     has_key: bool = False  # 是否配了独立凭证（不回显明文）
 

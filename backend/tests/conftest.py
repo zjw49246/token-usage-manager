@@ -19,6 +19,8 @@ TestSessionLocal = async_sessionmaker(test_engine, expire_on_commit=False)
 # 测试时必须重定向到测试库，否则会写进真实数据库文件
 import app.services.router as _router_service  # noqa: E402
 _router_service.AsyncSessionLocal = TestSessionLocal
+import app.services.channel_health as _health_service  # noqa: E402
+_health_service.AsyncSessionLocal = TestSessionLocal
 
 
 async def _seed_minimal_catalog():
