@@ -64,13 +64,19 @@ async def check_quota(db: AsyncSession, api_key: ApiKey, model: str) -> None:
     # 3. 保证 summary 行存在（后续原子操作依赖它）
     await _ensure_summary(db, api_key.id)
 
-    # 4. Token 总量：尽力预检（真实 token 数须等上游返回，故只能做到最终一致）
-    if api_key.max_total_tokens is not None:
-        used = await db.scalar(
-            select(UsageSummary.total_tokens_used).where(UsageSummary.api_key_id == api_key.id)
-        )
-        if used is not None and used >= api_key.max_total_tokens:
-            raise HTTPException(status_code=429, detail="Token quota exceeded")
+    # 4. Token 总量 / USD 成本：尽力预检（真实用量须等上游返回，故只能做到最终一致）
+    if api_key.max_total_tokens is not None or getattr(api_key, "max_cost_usd", None) is not None:
+        row = (
+            await db.execute(
+                select(UsageSummary.total_tokens_used, UsageSummary.total_cost_usd)
+                .where(UsageSummary.api_key_id == api_key.id)
+            )
+        ).first()
+        if row is not None:
+            if api_key.max_total_tokens is not None and row.total_tokens_used >= api_key.max_total_tokens:
+                raise HTTPException(status_code=429, detail="Token quota exceeded")
+            if api_key.max_cost_usd is not None and row.total_cost_usd >= api_key.max_cost_usd:
+                raise HTTPException(status_code=429, detail="Cost quota exceeded (USD)")
 
     # 5. RPM 限速（内存滑动窗口）——放在预扣之前，
     #    这样被限速拒绝的请求不会白白消耗一次调用额度
@@ -109,8 +115,12 @@ async def record_usage(
     duration_ms: int | None,
     status: str = "success",
     error_message: str | None = None,
+    *,
+    provider: str | None = None,
+    cost_usd: float | None = None,
+    org_id: int | None = None,
 ) -> None:
-    """写 usage_records 明细 + 原子累加 token 用量，供后台 Task 调用。
+    """写 usage_records 明细 + 原子累加 token/cost 用量，供后台 Task 调用。
 
     注意：调用次数（total_calls）已在 check_quota 里预扣，这里**不再重复计数**，
     只负责补记 token 数与明细。即便本函数因进程重启等原因未执行，
@@ -122,22 +132,26 @@ async def record_usage(
     # 写明细
     record = UsageRecord(
         api_key_id=api_key_id,
+        org_id=org_id,
         model=model,
+        provider=provider,
         input_tokens=input_tokens,
         output_tokens=output_tokens,
         total_tokens=total_tokens or 0,
+        cost_usd=cost_usd,
         duration_ms=duration_ms,
         status=status,
         error_message=error_message,
     )
     db.add(record)
 
-    # 原子累加 token（避免 read-modify-write 竞态）
+    # 原子累加 token / cost（避免 read-modify-write 竞态）
     await db.execute(
         update(UsageSummary)
         .where(UsageSummary.api_key_id == api_key_id)
         .values(
             total_tokens_used=UsageSummary.total_tokens_used + (total_tokens or 0),
+            total_cost_usd=UsageSummary.total_cost_usd + (cost_usd or 0.0),
             last_call_at=_now_utc(),
         )
     )

@@ -15,11 +15,49 @@ TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
 test_engine = create_async_engine(TEST_DB_URL, connect_args={"check_same_thread": False})
 TestSessionLocal = async_sessionmaker(test_engine, expire_on_commit=False)
 
+# 后台记账 task 直接用 services.router.AsyncSessionLocal（不走 get_db 依赖注入），
+# 测试时必须重定向到测试库，否则会写进真实数据库文件
+import app.services.router as _router_service  # noqa: E402
+_router_service.AsyncSessionLocal = TestSessionLocal
+
+
+async def _seed_minimal_catalog():
+    """测试用最小模型目录：入口现在是目录驱动的（P1），无目录则无模型"""
+    from app.models import Provider, ModelCatalog
+
+    async with TestSessionLocal() as db:
+        google = Provider(name="google", litellm_prefix="gemini", credential_env="GEMINI_API_KEY")
+        ark = Provider(
+            name="volcengine-ark", litellm_prefix="openai",
+            api_base="https://ark.example.com/api/v3", credential_env="DEEPSEEK_API_KEY",
+        )
+        db.add_all([google, ark])
+        await db.flush()
+        db.add_all([
+            ModelCatalog(
+                model_id="gemini-2.0-flash", provider_id=google.id,
+                litellm_model="gemini/gemini-2.0-flash",
+                input_price_per_1m=0.1, output_price_per_1m=0.4, context_window=1048576,
+            ),
+            ModelCatalog(
+                model_id="gemini-2.5-pro", provider_id=google.id,
+                litellm_model="gemini/gemini-2.5-pro",
+                input_price_per_1m=1.25, output_price_per_1m=10.0, context_window=1048576,
+            ),
+            ModelCatalog(
+                model_id="deepseek-v3-250324", provider_id=ark.id,
+                litellm_model="openai/deepseek-v3-250324",
+                input_price_per_1m=0.28, output_price_per_1m=0.42, context_window=131072,
+            ),
+        ])
+        await db.commit()
+
 
 @pytest_asyncio.fixture(autouse=True)
 async def setup_db():
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    await _seed_minimal_catalog()
     yield
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)

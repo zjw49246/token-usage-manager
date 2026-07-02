@@ -1,62 +1,56 @@
+"""代理入口（OpenAI 方言）：
+- GET /v1/models       — 从模型目录返回（带价格/上下文窗口等扩展字段）
+- POST /v1/chat/completions — 经 LiteLLM 内核路由到上游
+
+模型不再硬编码：全部来自 model_catalog（见 scripts/seed.py）。
+"""
 import json
 from fastapi import APIRouter, Depends, Request, HTTPException
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_api_key
-from app.models import ApiKey
+from app.models import ApiKey, ModelCatalog, Provider
 from app.services.quota import check_quota
-from app.services.proxy import proxy_request
-from app.config import settings
+from app.services import router as model_router
 
 router = APIRouter(prefix="/v1", tags=["proxy"])
 
-# 支持的 Gemini 模型列表
-GEMINI_MODELS = [
-    # Gemini 3 系列
-    "gemini-3.1-pro-preview",
-    "gemini-3-flash-preview",
-    "gemini-3.1-flash-lite-preview",
-    # Gemini 2.5 系列（稳定版）
-    "gemini-2.5-pro",
-    "gemini-2.5-flash",
-    "gemini-2.5-flash-lite",
-    # Gemini 2.0 系列（已弃用，保留兼容）
-    "gemini-2.0-flash",
-]
-
-# 支持的 DeepSeek 模型列表
-DEEPSEEK_MODELS = [
-    "deepseek-v3-250324",
-    "deepseek-r1-250528",
-    "deepseek-v3-2-251201",  # V3.2，2025年12月
-]
-
-# 所有支持的模型
-ALL_MODELS = GEMINI_MODELS + DEEPSEEK_MODELS
-
-# 模型 → 提供商映射
-_MODEL_OWNER = {}
-for _m in GEMINI_MODELS:
-    _MODEL_OWNER[_m] = "google"
-for _m in DEEPSEEK_MODELS:
-    _MODEL_OWNER[_m] = "deepseek"
-
 
 @router.get("/models")
-async def list_models(api_key: ApiKey = Depends(get_current_api_key)):
-    """返回当前 Key 可用的模型列表"""
-    if api_key.allowed_models:
-        models = [m for m in ALL_MODELS if m in api_key.allowed_models]
-    else:
-        models = ALL_MODELS
-    return {
-        "object": "list",
-        "data": [
-            {"id": m, "object": "model", "owned_by": _MODEL_OWNER.get(m, "unknown")}
-            for m in models
-        ],
-    }
+async def list_models(
+    api_key: ApiKey = Depends(get_current_api_key),
+    db: AsyncSession = Depends(get_db),
+):
+    """返回当前 Key 可用的模型列表（OpenAI 格式 + 价格扩展字段）"""
+    stmt = (
+        select(ModelCatalog, Provider)
+        .join(Provider, Provider.id == ModelCatalog.provider_id)
+        .where(ModelCatalog.enabled.is_(True), Provider.enabled.is_(True))
+        .order_by(Provider.name, ModelCatalog.model_id)
+    )
+    rows = (await db.execute(stmt)).all()
+
+    allowed = set(api_key.allowed_models) if api_key.allowed_models else None
+    data = []
+    for m, p in rows:
+        if allowed is not None and m.model_id not in allowed:
+            continue
+        data.append({
+            "id": m.model_id,
+            "object": "model",
+            "owned_by": p.name,
+            # ── TokenRouter 扩展字段 ──
+            "display_name": m.display_name,
+            "context_window": m.context_window,
+            "max_output_tokens": m.max_output_tokens,
+            "input_price_per_1m": m.input_price_per_1m,
+            "output_price_per_1m": m.output_price_per_1m,
+            "capabilities": m.capabilities,
+            "verified": m.verified,
+        })
+    return {"object": "list", "data": data}
 
 
 @router.post("/chat/completions")
@@ -68,13 +62,15 @@ async def chat_completions(
     if not api_key.is_active:
         raise HTTPException(status_code=403, detail="API key is disabled")
 
-    # 从请求体提取模型名
     try:
         body = json.loads(await request.body())
-        model = body.get("model", "gemini-2.5-flash")
     except Exception:
-        model = "gemini-2.5-flash"
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+    model = body.get("model")
+    if not model:
+        raise HTTPException(status_code=400, detail="Missing 'model' in request body")
 
+    # 目录解析（未知/停用模型 404）→ 配额（含原子预扣）→ LiteLLM 路由
+    route = await model_router.resolve_model(db, model)
     await check_quota(db, api_key, model)
-
-    return await proxy_request(request, "/chat/completions", api_key.id, model)
+    return await model_router.route_chat_completion(api_key, route, body)

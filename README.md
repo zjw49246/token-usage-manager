@@ -1,16 +1,31 @@
-# Token Usage Manager
+# Token Usage Manager（→ TokenRouter 改造中）
 
-一个 Gemini API 使用权限管理代理，支持通过生成的 API Key 授权其它应用调用模型，并控制 Token 用量、调用次数、可用模型、时间区间和 RPM 限速。内置 React 前端，可视化管理和查看用量。
+多供应商 LLM API 网关：通过生成的 API Key 授权其它应用调用模型，控制 Token 用量、调用次数、
+USD 成本限额、可用模型、时间区间和 RPM 限速。模型路由由 **LiteLLM 内核 + 数据库模型目录**驱动
+（openai / anthropic / google / deepseek / mistral / groq / xai / 火山 Ark），
+每次调用按目录单价核算成本。内置 React 前端，可视化管理和查看用量。
+
+> 正在按 `docs/TOKEN_ROUTER_TRANSFORM.md` 分期改造为 TokenRouter 式产品（当前已完成 P0/P1）。
 
 ## 架构
 
 ```
-客户端 App ──→ Token Usage Manager (FastAPI) ──→ Gemini API
+客户端 App ──→ Token Usage Manager (FastAPI) ──→ LiteLLM ──→ OpenAI / Anthropic / Gemini / DeepSeek / …
                │  API Key 校验
-               │  配额检查
-               │  用量记录 (SQLite)
+               │  配额检查（次数/Token/USD 成本/RPM）
+               │  模型目录（model_catalog：价格/上下文窗口）
+               │  用量与成本记录 (SQLite)
                └─ React 前端 (前端 build 后由 FastAPI 托管)
 ```
+
+启动前需 seed 模型目录（否则 `/v1/models` 为空）：
+
+```bash
+cd backend && uv run python -m scripts.seed
+```
+
+各供应商凭证通过环境变量配置（`OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` /
+`DEEPSEEK_API_KEY` / …），只配了哪家就能用哪家的模型。
 
 ## 快速开始（Docker）
 
