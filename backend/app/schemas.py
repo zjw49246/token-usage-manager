@@ -94,6 +94,8 @@ class OverviewStats(BaseModel):
     total_keys: int
     today_calls: int
     total_calls: int
+    total_cost_usd: float = 0.0
+    today_cost_usd: float = 0.0
 
 
 class TrendPoint(BaseModel):
@@ -110,3 +112,69 @@ class KeyTokenShare(BaseModel):
     name: str
     key_prefix: str
     tokens: int
+
+
+# ── 用户与组织（P2 多租户）───────────────────────────────────────────────────
+
+class RegisterIn(BaseModel):
+    email: str = Field(..., min_length=3, max_length=255, pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+    password: str = Field(..., min_length=8, max_length=128)
+    name: str = Field(..., min_length=1, max_length=100)
+
+
+class LoginIn(BaseModel):
+    email: str
+    password: str
+
+
+class TokenPair(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+
+
+class RefreshIn(BaseModel):
+    refresh_token: str
+
+
+class UserOut(BaseModel):
+    id: int
+    email: str
+    name: str
+    is_superadmin: bool
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class OrgCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+
+
+class OrgOut(BaseModel):
+    id: int
+    name: str
+    slug: str
+    credit_balance_usd: float
+    created_at: datetime
+    role: Optional[str] = None  # 当前用户在该组织的角色
+
+    model_config = {"from_attributes": True}
+
+
+class MemberAdd(BaseModel):
+    email: str
+    role: str = Field("member", pattern="^(member|admin|owner)$")
+
+
+class MemberUpdate(BaseModel):
+    role: str = Field(..., pattern="^(member|admin|owner)$")
+
+
+class MemberOut(BaseModel):
+    id: int
+    user_id: int
+    email: str
+    name: str
+    role: str
+    created_at: datetime

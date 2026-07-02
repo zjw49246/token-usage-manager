@@ -29,6 +29,15 @@ uv run pytest tests/ -v
 | `test_router.py` | USD 成本限额 | 累计成本超 max_cost_usd 后 429 |
 | `test_router.py` | 流式 SSE + usage | OpenAI SSE 回吐（含 [DONE]），尾部 chunk 提取 usage 记账 |
 | `test_router.py` | 上游错误映射 | litellm 异常按 status_code 透传，记 error 明细 |
+| `test_multitenant.py` | 注册/登录/me/个人组织 | 注册即建个人组织(owner)，JWT 全流程 |
+| `test_multitenant.py` | 重复邮箱/错误登录 | 409 / 401 |
+| `test_multitenant.py` | 无效 token 拒绝 | 401 |
+| `test_multitenant.py` | refresh 流程 | refresh 换新 token；access token 不能当 refresh |
+| `test_multitenant.py` | org Key 隔离 | 非成员 403；跨组织看不到/删不了别人的 Key |
+| `test_multitenant.py` | RBAC member 建 Key | member 可查看不可建（需 admin+） |
+| `test_multitenant.py` | RBAC admin 授权 | admin 不能授予 owner 角色 |
+| `test_multitenant.py` | 最后一个 owner 保护 | 不能降级/移除最后一个 owner |
+| `test_multitenant.py` | org 统计隔离 | overview 只统计本组织，含成本字段 |
 
 ## 手动集成测试
 

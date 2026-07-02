@@ -21,6 +21,10 @@ class Settings(BaseSettings):
 
     # 管理器配置
     admin_token: str = "change-me"
+    # 用户鉴权（P2 多租户）—— 生产务必用 `openssl rand -hex 32` 覆盖
+    jwt_secret: str = "change-me-please-set-a-32byte-min-jwt-secret-in-env"
+    jwt_access_ttl_minutes: int = 60
+    jwt_refresh_ttl_days: int = 30
     database_url: str = "sqlite+aiosqlite:///./data/token_manager.db"
     host: str = "0.0.0.0"
     port: int = 8000
