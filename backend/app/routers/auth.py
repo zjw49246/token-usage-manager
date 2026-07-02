@@ -66,7 +66,7 @@ async def oauth_url(provider: str, redirect_uri: str = Query(...)):
     if not oauth.enabled(provider):
         raise HTTPException(status_code=400, detail=f"{provider} login not configured")
     state = oauth.new_state()
-    return {"authorize_url": oauth.build_authorize_url(provider, redirect_uri, state), "state": state}
+    return {"authorize_url": await oauth.build_authorize_url(provider, redirect_uri, state), "state": state}
 
 
 @router.post("/oauth/{provider}/exchange", response_model=TokenPair)

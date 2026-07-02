@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Card, Form, Input, Button, Tabs, Typography, message, Divider, Space } from 'antd'
-import { GithubOutlined, GoogleOutlined } from '@ant-design/icons'
+import { GithubOutlined, GoogleOutlined, MessageOutlined, LoginOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { login, register, fetchMe, listOrgs, oauthProviders, oauthUrl } from '../api/index.js'
 import { useAuthStore } from '../stores/authStore.js'
@@ -9,6 +9,8 @@ import { useI18n } from '../i18n.js'
 const PROVIDER_META = {
   github: { icon: <GithubOutlined />, label: 'GitHub' },
   google: { icon: <GoogleOutlined />, label: 'Google' },
+  discord: { icon: <MessageOutlined />, label: 'Discord' },
+  oidc: { icon: <LoginOutlined />, label: 'SSO' },
 }
 
 export default function Login() {

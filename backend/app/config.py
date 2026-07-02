@@ -48,11 +48,18 @@ class Settings(BaseSettings):
     stripe_webhook_secret: str = ""
     stripe_currency: str = "usd"
 
-    # 第三方登录（P11 SSO）：留空则该 provider 不启用
+    # 第三方登录（P11/P24 SSO）：留空则该 provider 不启用
     oauth_github_client_id: str = ""
     oauth_github_client_secret: str = ""
     oauth_google_client_id: str = ""
     oauth_google_client_secret: str = ""
+    oauth_discord_client_id: str = ""
+    oauth_discord_client_secret: str = ""
+    # 通用 OIDC（任意 IdP，通过 issuer 发现端点）
+    oidc_issuer: str = ""
+    oidc_client_id: str = ""
+    oidc_client_secret: str = ""
+    oidc_display_name: str = "OIDC"
     database_url: str = "sqlite+aiosqlite:///./data/token_manager.db"
     host: str = "0.0.0.0"
     port: int = 8000

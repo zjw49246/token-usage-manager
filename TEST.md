@@ -73,6 +73,9 @@ uv run pytest tests/ -v
 | `test_sso.py` | 未配置拦截 | 未配 provider 的 /url 返回 400 |
 | `test_sso.py` | exchange 首次建号 | code 换 JWT，首登自动建用户+个人组织 |
 | `test_sso.py` | exchange 已有邮箱登录 | 邮箱已存在则登录同账号不重复建 |
+| `test_oidc.py` | Discord 登录 | providers 含 discord，授权 URL 正确 |
+| `test_oidc.py` | 通用 OIDC | issuer 发现端点，授权 URL 正确 |
+| `test_oidc.py` | Discord 首登建号 | exchange 建用户+组织 |
 | `test_cli.py` | 登录/建Key/用量/充值 | CLI 对 ASGI app 跑通登录→建 Key→用量→充值→余额 |
 | `test_cli.py` | models 命令 | 列出模型并计数 |
 | `test_cli.py` | config 命令 | 设置 base_url |
