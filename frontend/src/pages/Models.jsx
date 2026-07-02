@@ -32,7 +32,7 @@ export default function Models() {
     (!q || r.id.toLowerCase().includes(q.toLowerCase()))
   ), [rows, q, provider])
 
-  const MODE_META = { chat: { color: 'blue', label: '对话' }, embedding: { color: 'purple', label: '向量' }, image: { color: 'magenta', label: '图像' } }
+  const MODE_META = { chat: { color: 'blue', label: '对话' }, embedding: { color: 'purple', label: '向量' }, image: { color: 'magenta', label: '图像' }, rerank: { color: 'cyan', label: '重排' } }
   const columns = [
     {
       title: '模型', dataIndex: 'id',
@@ -47,7 +47,7 @@ export default function Models() {
     {
       title: '类型', dataIndex: 'mode',
       render: (m) => <Tag color={MODE_META[m]?.color}>{MODE_META[m]?.label || m}</Tag>,
-      filters: [{ text: '对话', value: 'chat' }, { text: '向量', value: 'embedding' }, { text: '图像', value: 'image' }],
+      filters: [{ text: '对话', value: 'chat' }, { text: '向量', value: 'embedding' }, { text: '图像', value: 'image' }, { text: '重排', value: 'rerank' }],
       onFilter: (val, r) => r.mode === val,
     },
     {

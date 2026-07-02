@@ -76,6 +76,9 @@ uv run pytest tests/ -v
 | `test_cli.py` | 登录/建Key/用量/充值 | CLI 对 ASGI app 跑通登录→建 Key→用量→充值→余额 |
 | `test_cli.py` | models 命令 | 列出模型并计数 |
 | `test_cli.py` | config 命令 | 设置 base_url |
+| `test_rerank_responses.py` | rerank 端点 | /v1/rerank 转译+故障转移+成本记账 |
+| `test_rerank_responses.py` | responses 端点 | /v1/responses 转发并记 usage |
+| `test_rerank_responses.py` | rerank 未知模型 404 | 未知模型 404 |
 
 ## 手动集成测试
 
