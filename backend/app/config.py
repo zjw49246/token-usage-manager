@@ -25,6 +25,10 @@ class Settings(BaseSettings):
     jwt_secret: str = "change-me-please-set-a-32byte-min-jwt-secret-in-env"
     jwt_access_ttl_minutes: int = 60
     jwt_refresh_ttl_days: int = 30
+
+    # 计费（P4）：新组织赠送的启动额度（USD）；余额 <= 0 时拒绝调用
+    welcome_credit_usd: float = 5.0
+    enforce_credit_balance: bool = True
     database_url: str = "sqlite+aiosqlite:///./data/token_manager.db"
     host: str = "0.0.0.0"
     port: int = 8000

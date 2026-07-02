@@ -63,6 +63,10 @@ export const getOverview = (orgId) => api.get(`/orgs/${orgId}/stats/overview`).t
 export const getTrend = (orgId, params) => api.get(`/orgs/${orgId}/stats/trend`, { params }).then(r => r.data)
 export const getKeyShares = (orgId) => api.get(`/orgs/${orgId}/stats/key-shares`).then(r => r.data)
 
+// ── Credits / Billing ──
+export const getCredits = (orgId) => api.get(`/orgs/${orgId}/credits`).then(r => r.data)
+export const topupCredits = (orgId, data) => api.post(`/orgs/${orgId}/credits`, data).then(r => r.data)
+
 // ── Catalog ──
 export const listCatalogModels = (params) => api.get('/catalog/models', { params }).then(r => r.data)
 

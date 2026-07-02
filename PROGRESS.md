@@ -106,3 +106,19 @@
 - 覆盖外部 API 兼容层时，用 mock 上游的方式对「翻译正确性」做单测（形状/字段/usage），不依赖真实上游。
 
 **commit**: 见本分支（feat/token-router-p3-tri-ingress）
+
+## token-router 改造 P4：额度计费 + 模型对比页
+
+**要点 / 决策**
+- 消费扣减发生在后台记账 task（`record_usage`）里，与 token/cost 累加同一事务；
+  用 `apply_credit`（原子 UPDATE 余额 + 写台账）串在 commit 前，避免半更新。
+- 欠额闸门放在 `check_quota`（请求前），余额<=0 返回 402；但只对「归属组织」的 Key 生效，
+  `/admin/keys` 建的无 org Key 不受影响（否则平台冒烟/存量测试会被拦）。
+- 新组织赠送 `welcome_credit_usd`（默认 $5）保证开箱即用，不用先充值；可用 `enforce_credit_balance=false` 全局关闸。
+
+**以后如何避免**
+- 余额/台账这类「钱」的写入，一律走单一 `apply_credit` 入口（原子改额 + 记流水），
+  不要在多处散写 UPDATE，否则余额和台账会对不上。
+- 加「拒绝类闸门」时先想清楚豁免范围（此处：无 org 的平台 Key 必须豁免），并用测试固定这条边界。
+
+**commit**: 见本分支（feat/token-router-p4-billing-catalog）
