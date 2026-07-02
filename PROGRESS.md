@@ -68,4 +68,21 @@
 - 绕过依赖注入的资源（全局 session 工厂等）要在 conftest 里显式重定向，并写一条注释说明为什么。
 - 加列必须全链路检查：model → schema(Create/Update/Out) → router 赋值 → 测试断言，缺一环就是静默丢字段。
 
-**commit**: 见本分支（feat/token-router-p1-litellm-core）
+**commit**: b16a8f3（feat/token-router-p1-litellm-core 分支）
+
+## token-router 改造 P2a：多租户后端（JWT + 组织 + RBAC）
+
+**遇到的问题**
+- `passlib[bcrypt]` 与 bcrypt 4.x 不兼容：passlib 1.7.4 读 `bcrypt.__about__.__version__` 报
+  `AttributeError`，导致后端加载失败、密码校验全挂。
+- 默认 JWT 密钥太短（20 字节），pyjwt 抛 `InsecureKeyLengthWarning`（<32 字节不达 SHA256 要求）。
+
+**如何解决**
+- 弃用 passlib，直接用 `bcrypt.hashpw/checkpw`，并显式处理 72 字节上限（截断）。
+- 默认 jwt_secret 换成 ≥32 字节占位串，`.env.example` 注明生产用 `openssl rand -hex 32`。
+
+**以后如何避免**
+- passlib 已多年不更新，新项目直接用 bcrypt/argon2 原生库，别引 passlib。
+- 密钥类默认值就按算法最低长度给，避免「示例值」触发安全警告或被直接带上生产。
+
+**commit**: 见本分支（feat/token-router-p2a-multitenant-backend）
