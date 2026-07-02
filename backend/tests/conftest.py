@@ -67,6 +67,14 @@ async def _seed_minimal_catalog():
                 model_id="gpt-5-responses", provider_id=google.id,
                 litellm_model="openai/gpt-5-responses", mode="chat", capabilities=["chat"],
             ),
+            ModelCatalog(
+                model_id="tts-1", provider_id=google.id,
+                litellm_model="openai/tts-1", mode="audio", capabilities=["audio"],
+            ),
+            ModelCatalog(
+                model_id="whisper-1", provider_id=google.id,
+                litellm_model="openai/whisper-1", mode="audio", capabilities=["audio"],
+            ),
         ])
         await db.commit()
 

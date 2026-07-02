@@ -5,7 +5,7 @@
 模型不再硬编码：全部来自 model_catalog（见 scripts/seed.py）。
 """
 import json
-from fastapi import APIRouter, Depends, Request, HTTPException
+from fastapi import APIRouter, Depends, Request, HTTPException, UploadFile, File, Form
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -130,6 +130,36 @@ async def responses(
 ):
     routes, body = await _prepare(request, api_key, db)
     return await model_router.route_responses(api_key, routes, body)
+
+
+@router.post("/audio/speech")
+async def audio_speech(
+    request: Request,
+    api_key: ApiKey = Depends(get_current_api_key),
+    db: AsyncSession = Depends(get_db),
+):
+    routes, body = await _prepare(request, api_key, db)
+    return await model_router.route_audio_speech(api_key, routes, body)
+
+
+@router.post("/audio/transcriptions")
+async def audio_transcriptions(
+    file: UploadFile = File(...),
+    model: str = Form(...),
+    language: str | None = Form(None),
+    prompt: str | None = Form(None),
+    response_format: str | None = Form(None),
+    api_key: ApiKey = Depends(get_current_api_key),
+    db: AsyncSession = Depends(get_db),
+):
+    if not api_key.is_active:
+        raise HTTPException(status_code=403, detail="API key is disabled")
+    routes = await model_router.resolve_routes(db, model)
+    await check_quota(db, api_key, model)
+    content = await file.read()
+    extra = {k: v for k, v in {"language": language, "prompt": prompt, "response_format": response_format}.items() if v}
+    file_tuple = (file.filename or "audio.mp3", content, file.content_type or "audio/mpeg")
+    return await model_router.route_audio_transcription(api_key, routes, model, file_tuple, extra)
 
 
 @router.post("/images/generations")

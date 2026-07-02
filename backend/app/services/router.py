@@ -438,6 +438,82 @@ async def _route_litellm_json(api_key: ApiKey, routes, body: dict, litellm_fn, s
     raise _map_litellm_error(last_exc)
 
 
+async def route_audio_speech(api_key: ApiKey, routes, body: dict):
+    """OpenAI /v1/audio/speech（TTS）：返回音频二进制"""
+    from fastapi.responses import Response
+    routes = _attempts(_as_routes(routes))
+    start_ms = int(time.time() * 1000)
+    last_exc = None
+    for route in routes:
+        try:
+            kwargs = {k: v for k, v in body.items() if k != "model"}
+            kwargs["model"] = route.upstream_model
+            if route.api_key:
+                kwargs["api_key"] = route.api_key
+            if route.api_base:
+                kwargs["api_base"] = route.api_base
+            resp = await litellm.aspeech(**kwargs)
+        except Exception as e:
+            last_exc = e
+            continue
+        audio = getattr(resp, "content", None)
+        if audio is None and hasattr(resp, "read"):
+            audio = resp.read()
+        try:
+            cost = litellm.completion_cost(completion_response=resp)
+        except Exception:
+            cost = None
+        asyncio.create_task(_save_usage_bg(
+            api_key, route, None, None, None,
+            int(time.time() * 1000) - start_ms, cost_override=cost,
+        ))
+        fmt = body.get("response_format", "mp3")
+        media = {"mp3": "audio/mpeg", "opus": "audio/opus", "aac": "audio/aac",
+                 "flac": "audio/flac", "wav": "audio/wav", "pcm": "audio/pcm"}.get(fmt, "audio/mpeg")
+        return Response(content=audio or b"", media_type=media)
+    asyncio.create_task(_save_usage_bg(
+        api_key, routes[-1], None, None, None,
+        int(time.time() * 1000) - start_ms, "error", str(last_exc)[:500],
+    ))
+    raise _map_litellm_error(last_exc)
+
+
+async def route_audio_transcription(api_key: ApiKey, routes, model_id: str,
+                                    file_tuple: tuple, extra: dict) -> JSONResponse:
+    """OpenAI /v1/audio/transcriptions（STT）：上传音频返回文本"""
+    routes = _attempts(_as_routes(routes))
+    start_ms = int(time.time() * 1000)
+    last_exc = None
+    for route in routes:
+        try:
+            kwargs = dict(extra)
+            kwargs["model"] = route.upstream_model
+            kwargs["file"] = file_tuple
+            if route.api_key:
+                kwargs["api_key"] = route.api_key
+            if route.api_base:
+                kwargs["api_base"] = route.api_base
+            resp = await litellm.atranscription(**kwargs)
+        except Exception as e:
+            last_exc = e
+            continue
+        data = resp.model_dump(exclude_none=True) if hasattr(resp, "model_dump") else {"text": getattr(resp, "text", "")}
+        try:
+            cost = litellm.completion_cost(completion_response=resp)
+        except Exception:
+            cost = None
+        asyncio.create_task(_save_usage_bg(
+            api_key, route, None, None, None,
+            int(time.time() * 1000) - start_ms, cost_override=cost,
+        ))
+        return JSONResponse(content=data)
+    asyncio.create_task(_save_usage_bg(
+        api_key, routes[-1], None, None, None,
+        int(time.time() * 1000) - start_ms, "error", str(last_exc)[:500],
+    ))
+    raise _map_litellm_error(last_exc)
+
+
 async def route_rerank(api_key: ApiKey, routes, body: dict) -> JSONResponse:
     """OpenAI/Cohere 风格 /v1/rerank"""
     data = await _route_litellm_json(api_key, routes, body, litellm.arerank)
