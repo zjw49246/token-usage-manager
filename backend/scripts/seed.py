@@ -25,6 +25,8 @@ PROVIDERS: dict[str, tuple[str, str | None, str]] = {
     "mistral":   ("mistral",   None, "MISTRAL_API_KEY"),
     "groq":      ("groq",      None, "GROQ_API_KEY"),
     "xai":       ("xai",       None, "XAI_API_KEY"),
+    # 火山 Ark（OpenAI 兼容端点）：现有部署的 DeepSeek 走这里，保证行为不变
+    "volcengine-ark": ("openai", "https://ark.cn-beijing.volces.com/api/v3", "DEEPSEEK_API_KEY"),
 }
 
 # litellm_provider -> 我们的 provider name
@@ -38,12 +40,14 @@ LITELLM_PROVIDER_MAP = {
     "xai": "xai",
 }
 
-# 现有部署的 10 个模型（火山 Ark 的 DeepSeek 命名 litellm 价格表里没有，手工给价）
+# 现有部署的遗留模型（火山 Ark 的 DeepSeek 命名 litellm 价格表里没有，手工给价）。
+# litellm_model 用 openai/ 前缀 = 「通用 OpenAI 兼容直通」，配合 provider.api_base 打到 Ark，
+# 模型名原样传给上游，行为与旧版 proxy 完全一致。
 LEGACY_MODELS: list[dict] = [
     # (model_id, provider, litellm_model, in_price/1M, out_price/1M, ctx)
-    {"model_id": "deepseek-v3-250324",  "provider": "deepseek", "litellm_model": "deepseek/deepseek-chat",     "in": 0.28, "out": 0.42, "ctx": 131072},
-    {"model_id": "deepseek-r1-250528",  "provider": "deepseek", "litellm_model": "deepseek/deepseek-reasoner", "in": 0.55, "out": 2.19, "ctx": 131072},
-    {"model_id": "deepseek-v3-2-251201", "provider": "deepseek", "litellm_model": "deepseek/deepseek-chat",    "in": 0.28, "out": 0.42, "ctx": 131072},
+    {"model_id": "deepseek-v3-250324",   "provider": "volcengine-ark", "litellm_model": "openai/deepseek-v3-250324",   "in": 0.28, "out": 0.42, "ctx": 131072},
+    {"model_id": "deepseek-r1-250528",   "provider": "volcengine-ark", "litellm_model": "openai/deepseek-r1-250528",   "in": 0.55, "out": 2.19, "ctx": 131072},
+    {"model_id": "deepseek-v3-2-251201", "provider": "volcengine-ark", "litellm_model": "openai/deepseek-v3-2-251201", "in": 0.28, "out": 0.42, "ctx": 131072},
 ]
 
 # 只收录这些模式的模型（chat 为主，后续期再开 embedding / image）

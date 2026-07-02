@@ -45,3 +45,27 @@
 - 大表灌数据先想清楚「收录标准」，白名单 + 排除模式，别图省事全量灌。
 
 **commit**: 98c5b50（feat/token-router-p0 分支）
+
+## token-router 改造 P1：LiteLLM 内核替换硬编码路由
+
+**遇到的问题**
+- P0 seed 把火山 Ark 的 DeepSeek 遗留模型映射到了 `deepseek/deepseek-chat`（官方 api.deepseek.com），
+  但现部署实际打的是火山 Ark（base/模型名都不同）——直接上线会**悄悄改变行为**。
+- 后台记账 task 直接用 `AsyncSessionLocal`（不走 get_db 依赖注入），测试时写进了真实数据库文件，
+  测试读内存库读不到记录。
+- `max_cost_usd` 在 models 层加了列，但 schemas.py 没加字段 → 建 Key 时被 pydantic 静默丢弃，
+  限额形同虚设（测试 429 变 200 才暴露）。
+
+**如何解决**
+- Ark 建成独立供应商 `volcengine-ark`（openai 兼容 + api_base），遗留模型 litellm_model 用
+  `openai/{原模型名}` 直通，模型名原样传上游，行为与旧版完全一致。
+- conftest 模块级把 `services.router.AsyncSessionLocal` 重定向到测试会话工厂。
+- schemas 的 Create/Update/Out 全链路补 `max_cost_usd` / `cost_usd` / `total_cost_usd` 字段。
+
+**以后如何避免**
+- 换路由内核时，先枚举**现部署实际在用的每一个模型的完整调用路径**（base/凭证/模型名三元组），
+  逐一确认新路径等价，再谈重构。
+- 绕过依赖注入的资源（全局 session 工厂等）要在 conftest 里显式重定向，并写一条注释说明为什么。
+- 加列必须全链路检查：model → schema(Create/Update/Out) → router 赋值 → 测试断言，缺一环就是静默丢字段。
+
+**commit**: 见本分支（feat/token-router-p1-litellm-core）

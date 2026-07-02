@@ -44,6 +44,7 @@ async def create_key(body: ApiKeyCreate, db: AsyncSession = Depends(get_db)):
         max_total_tokens=body.max_total_tokens,
         max_calls=body.max_calls,
         max_rpm=body.max_rpm,
+        max_cost_usd=body.max_cost_usd,
         valid_from=body.valid_from,
         valid_until=body.valid_until,
     )

@@ -13,6 +13,9 @@
 - **Seed**：`uv run python -m scripts.seed` 灌供应商注册表 + 模型目录（价格来自 litellm.model_cost）+ 默认组织回填
 - **数据模型**（P0 后）：多租户（organizations/users/memberships/credit_transactions）+
   平台目录（providers/model_catalog）+ 原有（api_keys/usage_records/usage_summary，已加 org_id/cost 列）
+- **路由内核**（P1 后）：`services/router.py` 用 LiteLLM 数据驱动路由（model_catalog → litellm_model
+  + provider.api_base + 凭证 env），旧 `services/proxy.py` 已删除；成本按目录单价核算并原子累加；
+  Vertex AI 模式暂不支持（当前部署未使用，需要时经 litellm vertex_ai 前缀恢复）
 - **前端**：React18 + Vite + antd5，build 后由 FastAPI 托管；`frontend/`
 
 ## Git 信息

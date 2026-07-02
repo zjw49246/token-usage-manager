@@ -23,6 +23,12 @@ uv run pytest tests/ -v
 | `test_p0_schema.py` | 新表 CRUD 冒烟 | 多租户/供应商/目录/台账新表可写可查 |
 | `test_p0_schema.py` | seed 幂等 | 两次 seed 结果一致；litellm 灌入 >100 模型；遗留模型名仍在目录 |
 | `test_p0_schema.py` | 默认组织回填 | 已有 API Key 在 seed 后回填到默认组织 |
+| `test_router.py` | /v1/models 带价格 | 目录驱动，返回单价/上下文窗口/能力扩展字段 |
+| `test_router.py` | 未知模型 404 | OpenAI 风格 model_not_found |
+| `test_router.py` | 非流式成本记账 | mock litellm，按目录单价核算 cost_usd 并原子累加 |
+| `test_router.py` | USD 成本限额 | 累计成本超 max_cost_usd 后 429 |
+| `test_router.py` | 流式 SSE + usage | OpenAI SSE 回吐（含 [DONE]），尾部 chunk 提取 usage 记账 |
+| `test_router.py` | 上游错误映射 | litellm 异常按 status_code 透传，记 error 明细 |
 
 ## 手动集成测试
 

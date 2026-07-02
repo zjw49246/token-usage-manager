@@ -97,10 +97,10 @@ async def test_max_calls_no_concurrent_bypass(admin_client, client, monkeypatch)
     from app.routers import proxy as proxy_router
     from fastapi.responses import JSONResponse
 
-    async def fake_proxy_request(request, path, api_key_id, model):
+    async def fake_route_chat_completion(api_key, route, body):
         return JSONResponse(content={"ok": True})
 
-    monkeypatch.setattr(proxy_router, "proxy_request", fake_proxy_request)
+    monkeypatch.setattr(proxy_router.model_router, "route_chat_completion", fake_route_chat_completion)
 
     key = (await admin_client.post("/admin/keys", json={"name": "cc", "max_calls": 3})).json()["key"]
     headers = {"Authorization": f"Bearer {key}"}

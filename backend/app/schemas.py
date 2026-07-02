@@ -11,6 +11,7 @@ class ApiKeyCreate(BaseModel):
     max_total_tokens: Optional[int] = Field(None, ge=1)
     max_calls: Optional[int] = Field(None, ge=1)
     max_rpm: Optional[int] = Field(None, ge=1)
+    max_cost_usd: Optional[float] = Field(None, gt=0)
     valid_from: Optional[datetime] = None
     valid_until: Optional[datetime] = None
 
@@ -22,6 +23,7 @@ class ApiKeyUpdate(BaseModel):
     max_total_tokens: Optional[int] = Field(None, ge=1)
     max_calls: Optional[int] = Field(None, ge=1)
     max_rpm: Optional[int] = Field(None, ge=1)
+    max_cost_usd: Optional[float] = Field(None, gt=0)
     valid_from: Optional[datetime] = None
     valid_until: Optional[datetime] = None
 
@@ -29,6 +31,7 @@ class ApiKeyUpdate(BaseModel):
 class UsageSummaryOut(BaseModel):
     total_tokens_used: int
     total_calls: int
+    total_cost_usd: float = 0.0
     last_call_at: Optional[datetime]
 
 
@@ -41,6 +44,7 @@ class ApiKeyOut(BaseModel):
     max_total_tokens: Optional[int]
     max_calls: Optional[int]
     max_rpm: Optional[int]
+    max_cost_usd: Optional[float] = None
     valid_from: Optional[datetime]
     valid_until: Optional[datetime]
     created_at: datetime
@@ -61,9 +65,11 @@ class UsageRecordOut(BaseModel):
     id: int
     api_key_id: int
     model: str
+    provider: Optional[str] = None
     input_tokens: Optional[int]
     output_tokens: Optional[int]
     total_tokens: Optional[int]
+    cost_usd: Optional[float] = None
     duration_ms: Optional[int]
     status: str
     error_message: Optional[str]
