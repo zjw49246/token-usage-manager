@@ -22,3 +22,26 @@
 - fire-and-forget 的后台 task 不能承载「一致性关键」的写入（异常会被吞、进程重启会丢）。
 
 **commit**: 1558069（fix-concurrent-quota-race 分支）
+
+## token-router 改造 P0：Alembic + 新表落地
+
+**遇到的问题**
+- 项目此前用 `create_all` 裸奔建库，给已有表加列（org_id/cost_usd）无法自动生效 → 必须引入 Alembic。
+- SQLite 的 batch 模式下，`add_column` 带**内联 ForeignKey** 会产生未命名约束，报
+  `ValueError: Constraint must have a name` 且迁移中途失败。
+- litellm.model_cost 有 2929 条目，直接全灌目录会混入 ft:/audio/日期快照等长尾垃圾。
+
+**如何解决**
+- 双迁移策略：001 基线（原 3 表）+ 002 P0 变更；已有部署 `alembic stamp 001` 后升级；
+  测试/新环境仍走 create_all（验证过两条路径产出的 schema 完全一致）。
+- batch 加列一律裸 `sa.Column`（不带内联 FK），SQLite 本就不强制 FK，约束保留在模型层。
+- seed 用 mode=chat + 主流 7 家 provider + 正则排除长尾，精选出 171 个模型；
+  火山 Ark 的 DeepSeek 遗留命名（deepseek-v3-250324 等）手工补价保证行为不变。
+- seed 全程幂等（存在即跳过），重复执行 +0。
+
+**以后如何避免**
+- 涉及 schema 演进的项目，第一时间引入迁移工具，不要等要加列了才补。
+- SQLite + Alembic 记住两条：`render_as_batch=True`、batch 内不用内联 FK。
+- 大表灌数据先想清楚「收录标准」，白名单 + 排除模式，别图省事全量灌。
+
+**commit**: 98c5b50（feat/token-router-p0 分支）
