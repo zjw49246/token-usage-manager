@@ -144,17 +144,28 @@ async def resolve_model(db: AsyncSession, model_id: str) -> ModelRoute:
 
 
 def compute_cost(
-    catalog: ModelCatalog, input_tokens: int | None, output_tokens: int | None
+    catalog: ModelCatalog, input_tokens: int | None, output_tokens: int | None,
+    cached_tokens: int | None = 0,
 ) -> float | None:
-    """按目录单价核算成本（USD）。无价格信息时返回 None。"""
+    """按目录单价核算成本（USD）。上游 prompt 缓存读的 token 按折扣计价。无价格信息时返回 None。"""
     if catalog.input_price_per_1m is None and catalog.output_price_per_1m is None:
         return None
     cost = 0.0
-    if input_tokens and catalog.input_price_per_1m:
-        cost += input_tokens / 1_000_000 * catalog.input_price_per_1m
+    in_price = catalog.input_price_per_1m
+    if input_tokens and in_price:
+        cached = min(cached_tokens or 0, input_tokens)
+        billable = input_tokens - cached
+        cost += billable / 1_000_000 * in_price
+        cost += cached / 1_000_000 * in_price * settings.cache_read_price_ratio
     if output_tokens and catalog.output_price_per_1m:
         cost += output_tokens / 1_000_000 * catalog.output_price_per_1m
     return round(cost, 8)
+
+
+def _cached_tokens(usage: dict) -> int:
+    """从 usage 提取上游 prompt 缓存读 token（OpenAI/Anthropic 经 litellm 归一到 prompt_tokens_details）"""
+    d = usage.get("prompt_tokens_details") or {}
+    return d.get("cached_tokens") or 0
 
 
 async def _save_usage_bg(
@@ -168,16 +179,17 @@ async def _save_usage_bg(
     error_message: str | None = None,
     cached: bool = False,
     cost_override: float | None = None,
+    cached_tokens: int | None = 0,
 ) -> None:
     """后台异步记账（明细 + token/cost 原子累加），不阻塞响应。
 
     缓存命中时按 cache_hit_cost_multiplier 折算成本（默认 0=免费）。
-    cost_override 用于非 token 计价（如图像按张）。
+    cost_override 用于非 token 计价（如图像按张）；cached_tokens 为上游 prompt 缓存读 token。
     """
     if cost_override is not None:
         cost = cost_override
     else:
-        cost = compute_cost(route.catalog, input_tokens, output_tokens)
+        cost = compute_cost(route.catalog, input_tokens, output_tokens, cached_tokens)
     if cached and cost is not None:
         cost = round(cost * settings.cache_hit_cost_multiplier, 8)
     async with AsyncSessionLocal() as db:
@@ -189,6 +201,7 @@ async def _save_usage_bg(
             cost_usd=cost,
             org_id=api_key.org_id,
             cached=cached,
+            cached_tokens=cached_tokens or None,
         )
 
 
@@ -290,7 +303,7 @@ async def acompletion_once(api_key: ApiKey, routes, body: dict) -> dict:
         asyncio.create_task(_save_usage_bg(
             api_key, route,
             usage.get("prompt_tokens"), usage.get("completion_tokens"), usage.get("total_tokens"),
-            duration_ms,
+            duration_ms, cached_tokens=_cached_tokens(usage),
         ))
         return data
 
@@ -331,6 +344,7 @@ async def aiter_openai_chunks(api_key: ApiKey, routes, body: dict) -> AsyncGener
         raise _map_litellm_error(last_exc)
 
     inp = out = total = None
+    cached_tok = 0
     status, error_msg = "success", None
     try:
         async for chunk in stream:
@@ -341,6 +355,7 @@ async def aiter_openai_chunks(api_key: ApiKey, routes, body: dict) -> AsyncGener
                 inp = usage.get("prompt_tokens", inp)
                 out = usage.get("completion_tokens", out)
                 total = usage.get("total_tokens", total)
+                cached_tok = _cached_tokens(usage) or cached_tok
             yield data
     except Exception as e:
         status, error_msg = "error", str(e)[:500]
@@ -349,6 +364,7 @@ async def aiter_openai_chunks(api_key: ApiKey, routes, body: dict) -> AsyncGener
         duration_ms = int(time.time() * 1000) - start_ms
         asyncio.create_task(_save_usage_bg(
             api_key, chosen, inp, out, total, duration_ms, status, error_msg,
+            cached_tokens=cached_tok,
         ))
 
 

@@ -36,6 +36,8 @@ class Settings(BaseSettings):
     channel_auto_disable: bool = False
     # 上游调用超时（秒，P20 可配）
     upstream_timeout: int = 600
+    # 上游 prompt 缓存读命中的 token 计价折扣（P27，默认 0.25 = 缓存输入按 1/4 价）
+    cache_read_price_ratio: float = 0.25
 
     # 缓存（P7）：相同请求去重复用；命中按 multiplier 折算成本（0=免费）
     cache_enabled: bool = True
