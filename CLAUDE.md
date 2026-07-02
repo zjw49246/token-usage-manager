@@ -20,7 +20,9 @@
   ② 组织 RBAC（`dependencies.require_role`，member<admin<owner，超管视作 owner）；
   ③ 代理 API Key（`tum_`，归属 org）+ 平台超管 `ADMIN_TOKEN`（`/admin`）。
   org 隔离 API 在 `routers/orgs.py`（Key/用量/统计强制按 org_id 过滤）
-- **前端**：React18 + Vite + antd5，build 后由 FastAPI 托管；`frontend/`（P2b 将加登录/组织切换/成员管理）
+- **前端**（P2b 后）：React18 + Vite + antd5，build 后由 FastAPI 托管；`frontend/`。
+  JWT 会话（`stores/authStore.js`）+ 登录注册页 + 顶栏组织切换器 + 成员管理页；
+  所有数据页走 `/orgs/{currentOrgId}/*`；模型选择拉 `/catalog/models`。旧 adminStore 已删
 
 ## Git 信息
 

@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.database import init_db
-from app.routers import admin, proxy, auth, orgs
+from app.routers import admin, proxy, auth, orgs, catalog
 
 
 @asynccontextmanager
@@ -34,6 +34,7 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(orgs.router)
+app.include_router(catalog.router)
 app.include_router(admin.router)
 app.include_router(proxy.router)
 

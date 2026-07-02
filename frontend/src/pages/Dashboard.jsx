@@ -5,6 +5,7 @@ import {
   PieChart, Pie, Cell, Tooltip as PieTooltip
 } from 'recharts'
 import { getOverview, getTrend, getKeyShares } from '../api/index.js'
+import { useAuthStore } from '../stores/authStore.js'
 import StatCard from '../components/StatCard.jsx'
 
 const COLORS = ['#1677ff', '#52c41a', '#fa8c16', '#f5222d', '#722ed1', '#13c2c2']
@@ -16,6 +17,7 @@ function fmt(n) {
 }
 
 export default function Dashboard() {
+  const orgId = useAuthStore((s) => s.currentOrgId)
   const [overview, setOverview] = useState(null)
   const [trend, setTrend] = useState([])
   const [shares, setShares] = useState([])
@@ -23,12 +25,13 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
 
   const loadData = async () => {
+    if (!orgId) return
     setLoading(true)
     try {
       const [ov, tr, sh] = await Promise.all([
-        getOverview(),
-        getTrend({ granularity, days: granularity === 'hour' ? 1 : 7 }),
-        getKeyShares(),
+        getOverview(orgId),
+        getTrend(orgId, { granularity, days: granularity === 'hour' ? 1 : 7 }),
+        getKeyShares(orgId),
       ])
       setOverview(ov)
       setTrend(tr.points)
@@ -40,22 +43,25 @@ export default function Dashboard() {
     }
   }
 
-  useEffect(() => { loadData() }, [granularity])
+  useEffect(() => { loadData() }, [granularity, orgId])
 
   return (
     <div>
       <Row gutter={[16, 16]}>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={24} sm={12} lg={5}>
+          <StatCard title="累计成本 (USD)" value={`$${(overview?.total_cost_usd ?? 0).toFixed(4)}`} loading={loading} valueStyle={{ color: '#722ed1' }} />
+        </Col>
+        <Col xs={24} sm={12} lg={5}>
+          <StatCard title="今日成本 (USD)" value={`$${(overview?.today_cost_usd ?? 0).toFixed(4)}`} loading={loading} valueStyle={{ color: '#eb2f96' }} />
+        </Col>
+        <Col xs={24} sm={12} lg={5}>
           <StatCard title="累计 Token 用量" value={fmt(overview?.total_tokens ?? 0)} loading={loading} valueStyle={{ color: '#1677ff' }} />
         </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <StatCard title="今日 Token 用量" value={fmt(overview?.today_tokens ?? 0)} loading={loading} valueStyle={{ color: '#52c41a' }} />
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
-          <StatCard title="活跃 Key 数" value={overview?.active_keys ?? 0} suffix={`/ ${overview?.total_keys ?? 0}`} loading={loading} />
-        </Col>
-        <Col xs={24} sm={12} lg={6}>
+        <Col xs={24} sm={12} lg={5}>
           <StatCard title="今日调用次数" value={overview?.today_calls ?? 0} loading={loading} valueStyle={{ color: '#fa8c16' }} />
+        </Col>
+        <Col xs={24} sm={12} lg={4}>
+          <StatCard title="活跃 Key" value={overview?.active_keys ?? 0} suffix={`/ ${overview?.total_keys ?? 0}`} loading={loading} />
         </Col>
       </Row>
 
