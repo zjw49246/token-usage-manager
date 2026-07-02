@@ -122,3 +122,19 @@
 - 加「拒绝类闸门」时先想清楚豁免范围（此处：无 org 的平台 Key 必须豁免），并用测试固定这条边界。
 
 **commit**: 见本分支（feat/token-router-p4-billing-catalog）
+
+## token-router 改造 P5：品牌收尾 + 容器开箱即用
+
+**要点**
+- 品牌统一为 TokenRouter：FastAPI title、index.html、包名（tokenrouter / tokenrouter-frontend）、README 重写。
+- 容器/首次启动自动 seed 模型目录（`main.py:_seed_if_empty`，幂等，目录为空才灌），
+  避免新部署 `/v1/models` 为空、要手动跑 seed。
+- 修 docker-compose 的坑：原来强制挂载 `./backend/credentials.json:ro`（Vertex 用），
+  文件不存在会让 `docker compose up` 失败或误建目录——Vertex 已不支持，直接删除该挂载。
+- 改 pyproject `name` 后 uv.lock 的项目名会变，必须 `uv lock` 重新生成，否则 Docker 里 `uv sync --frozen` 会失败。
+
+**以后如何避免**
+- 容器镜像要「开箱即用」：初始化数据（seed）应在应用启动时幂等完成，不要依赖使用者手动跑脚本。
+- compose 里挂载宿主机文件（非目录）且该文件可能不存在时，务必设为可选或去掉，否则破坏一键启动。
+
+**commit**: 见本分支（feat/token-router-p5-rebrand）
