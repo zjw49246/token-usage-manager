@@ -32,6 +32,7 @@ export default function Models() {
     (!q || r.id.toLowerCase().includes(q.toLowerCase()))
   ), [rows, q, provider])
 
+  const MODE_META = { chat: { color: 'blue', label: '对话' }, embedding: { color: 'purple', label: '向量' }, image: { color: 'magenta', label: '图像' } }
   const columns = [
     {
       title: '模型', dataIndex: 'id',
@@ -42,6 +43,12 @@ export default function Models() {
         </Space>
       ),
       sorter: (a, b) => a.id.localeCompare(b.id),
+    },
+    {
+      title: '类型', dataIndex: 'mode',
+      render: (m) => <Tag color={MODE_META[m]?.color}>{MODE_META[m]?.label || m}</Tag>,
+      filters: [{ text: '对话', value: 'chat' }, { text: '向量', value: 'embedding' }, { text: '图像', value: 'image' }],
+      onFilter: (val, r) => r.mode === val,
     },
     {
       title: '供应商', dataIndex: 'provider',
@@ -55,7 +62,8 @@ export default function Models() {
     },
     {
       title: '输出价 ($/1M)', dataIndex: 'output_price_per_1m',
-      render: price, sorter: (a, b) => (a.output_price_per_1m ?? 0) - (b.output_price_per_1m ?? 0),
+      render: (v, r) => r.mode === 'image' ? `$${r.image_price}/张` : price(v),
+      sorter: (a, b) => (a.output_price_per_1m ?? 0) - (b.output_price_per_1m ?? 0),
     },
     {
       title: '上下文窗口', dataIndex: 'context_window',

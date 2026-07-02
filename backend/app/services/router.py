@@ -160,12 +160,17 @@ async def _save_usage_bg(
     status: str = "success",
     error_message: str | None = None,
     cached: bool = False,
+    cost_override: float | None = None,
 ) -> None:
     """后台异步记账（明细 + token/cost 原子累加），不阻塞响应。
 
     缓存命中时按 cache_hit_cost_multiplier 折算成本（默认 0=免费）。
+    cost_override 用于非 token 计价（如图像按张）。
     """
-    cost = compute_cost(route.catalog, input_tokens, output_tokens)
+    if cost_override is not None:
+        cost = cost_override
+    else:
+        cost = compute_cost(route.catalog, input_tokens, output_tokens)
     if cached and cost is not None:
         cost = round(cost * settings.cache_hit_cost_multiplier, 8)
     async with AsyncSessionLocal() as db:
@@ -336,3 +341,86 @@ async def route_chat_completion(
             media_type="text/event-stream",
         )
     return JSONResponse(content=await acompletion_once(api_key, routes, body))
+
+
+# ══════════════════ Embeddings / Images 端点（P8）══════════════════
+
+
+async def _try_failover(api_key: ApiKey, routes, fn, extract_usage, extract_cost):
+    """通用故障转移执行器：逐条通道试 fn(kwargs)，成功即记账返回 data；全失败记 error 抛出。
+
+    fn(route) -> (data_dict, resp)；extract_usage(data)->(inp,out,total)；extract_cost(route,data)->cost
+    """
+    routes = _attempts(_as_routes(routes))
+    start_ms = int(time.time() * 1000)
+    last_exc = None
+    for route in routes:
+        try:
+            data = await fn(route)
+        except Exception as e:
+            last_exc = e
+            continue
+        duration_ms = int(time.time() * 1000) - start_ms
+        inp, out, total = extract_usage(data)
+        asyncio.create_task(_save_usage_bg(
+            api_key, route, inp, out, total, duration_ms,
+            cost_override=extract_cost(route, data),
+        ))
+        return data
+    asyncio.create_task(_save_usage_bg(
+        api_key, routes[-1], None, None, None,
+        int(time.time() * 1000) - start_ms, "error", str(last_exc)[:500],
+    ))
+    raise _map_litellm_error(last_exc)
+
+
+async def route_embeddings(api_key: ApiKey, routes, body: dict) -> JSONResponse:
+    """OpenAI /v1/embeddings（token 计价，走目录单价）"""
+    async def call(route: ModelRoute):
+        kwargs = {k: v for k, v in body.items() if k != "model"}
+        kwargs["model"] = route.upstream_model
+        if route.api_key:
+            kwargs["api_key"] = route.api_key
+        if route.api_base:
+            kwargs["api_base"] = route.api_base
+        resp = await litellm.aembedding(**kwargs)
+        data = resp.model_dump(exclude_none=True)
+        data["model"] = route.catalog.model_id
+        return data
+
+    def usage(data):
+        u = data.get("usage") or {}
+        return u.get("prompt_tokens"), 0, u.get("total_tokens")
+
+    def cost(route, data):
+        u = data.get("usage") or {}
+        return compute_cost(route.catalog, u.get("prompt_tokens"), 0)
+
+    data = await _try_failover(api_key, routes, call, usage, cost)
+    return JSONResponse(content=data)
+
+
+async def route_image_generation(api_key: ApiKey, routes, body: dict) -> JSONResponse:
+    """OpenAI /v1/images/generations（按张计价）"""
+    n = int(body.get("n", 1) or 1)
+
+    async def call(route: ModelRoute):
+        kwargs = {k: v for k, v in body.items() if k != "model"}
+        kwargs["model"] = route.upstream_model
+        if route.api_key:
+            kwargs["api_key"] = route.api_key
+        if route.api_base:
+            kwargs["api_base"] = route.api_base
+        resp = await litellm.aimage_generation(**kwargs)
+        return resp.model_dump(exclude_none=True)
+
+    def usage(data):
+        return None, None, None
+
+    def cost(route, data):
+        price = route.catalog.image_price
+        imgs = len(data.get("data") or []) or n
+        return round(price * imgs, 8) if price else None
+
+    data = await _try_failover(api_key, routes, call, usage, cost)
+    return JSONResponse(content=data)

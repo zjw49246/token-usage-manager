@@ -74,3 +74,43 @@ async def chat_completions(
     routes = await model_router.resolve_routes(db, model)
     await check_quota(db, api_key, model)
     return await model_router.route_chat_completion(api_key, routes, body)
+
+
+@router.post("/embeddings")
+async def embeddings(
+    request: Request,
+    api_key: ApiKey = Depends(get_current_api_key),
+    db: AsyncSession = Depends(get_db),
+):
+    if not api_key.is_active:
+        raise HTTPException(status_code=403, detail="API key is disabled")
+    try:
+        body = json.loads(await request.body())
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+    model = body.get("model")
+    if not model:
+        raise HTTPException(status_code=400, detail="Missing 'model' in request body")
+    routes = await model_router.resolve_routes(db, model)
+    await check_quota(db, api_key, model)
+    return await model_router.route_embeddings(api_key, routes, body)
+
+
+@router.post("/images/generations")
+async def images_generations(
+    request: Request,
+    api_key: ApiKey = Depends(get_current_api_key),
+    db: AsyncSession = Depends(get_db),
+):
+    if not api_key.is_active:
+        raise HTTPException(status_code=403, detail="API key is disabled")
+    try:
+        body = json.loads(await request.body())
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+    model = body.get("model")
+    if not model:
+        raise HTTPException(status_code=400, detail="Missing 'model' in request body")
+    routes = await model_router.resolve_routes(db, model)
+    await check_quota(db, api_key, model)
+    return await model_router.route_image_generation(api_key, routes, body)

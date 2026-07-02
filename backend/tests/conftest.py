@@ -49,6 +49,16 @@ async def _seed_minimal_catalog():
                 litellm_model="openai/deepseek-v3-250324",
                 input_price_per_1m=0.28, output_price_per_1m=0.42, context_window=131072,
             ),
+            ModelCatalog(
+                model_id="text-embedding-3-small", provider_id=google.id,
+                litellm_model="openai/text-embedding-3-small", mode="embedding",
+                input_price_per_1m=0.02, capabilities=["embedding"],
+            ),
+            ModelCatalog(
+                model_id="dall-e-3", provider_id=google.id,
+                litellm_model="openai/dall-e-3", mode="image",
+                image_price=0.04, capabilities=["image"],
+            ),
         ])
         await db.commit()
 

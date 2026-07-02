@@ -50,12 +50,20 @@ LEGACY_MODELS: list[dict] = [
     {"model_id": "deepseek-v3-2-251201", "provider": "volcengine-ark", "litellm_model": "openai/deepseek-v3-2-251201", "in": 0.28, "out": 0.42, "ctx": 131072},
 ]
 
+# 常见图像模型（litellm 按像素计价、命名带尺寸前缀，这里手工补「每张」价，保证 image 端点有主流模型）
+IMAGE_MODELS: list[dict] = [
+    {"model_id": "dall-e-3", "provider": "openai", "litellm_model": "openai/dall-e-3", "image_price": 0.04},
+    {"model_id": "gpt-image-1", "provider": "openai", "litellm_model": "openai/gpt-image-1", "image_price": 0.04},
+]
+
 # 只收录这些模式的模型（chat 为主，后续期再开 embedding / image）
-ALLOWED_MODES = {"chat"}
+ALLOWED_MODES = {"chat", "embedding", "image_generation"}
+# litellm mode → 我们目录的 mode
+_MODE_MAP = {"chat": "chat", "embedding": "embedding", "image_generation": "image"}
 
 # 过滤掉日期快照、ft、audio/realtime 等长尾命名，保持目录干净
 EXCLUDE_PATTERN = re.compile(
-    r"(ft:|audio|realtime|search|transcribe|tts|whisper|dall-e|davinci|babbage|curie|"
+    r"(ft:|audio|realtime|search|transcribe|tts|whisper|davinci|babbage|curie|"
     r"instruct-0914|-\d{4}(-\d{2}){2}|@|latest$)",
     re.IGNORECASE,
 )
@@ -66,8 +74,8 @@ def _public_name(litellm_key: str) -> str:
     return litellm_key.split("/", 1)[1] if "/" in litellm_key else litellm_key
 
 
-def _capabilities(info: dict) -> list[str]:
-    caps = ["chat"]
+def _capabilities(info: dict, mode: str) -> list[str]:
+    caps = [mode]
     if info.get("supports_vision"):
         caps.append("vision")
     if info.get("supports_function_calling"):
@@ -97,12 +105,18 @@ async def seed_catalog(db, provider_ids: dict[str, int]) -> tuple[int, int]:
     for key, info in litellm.model_cost.items():
         if not isinstance(info, dict):
             continue
-        if info.get("mode") not in ALLOWED_MODES:
+        litellm_mode = info.get("mode")
+        if litellm_mode not in ALLOWED_MODES:
             continue
+        mode = _MODE_MAP[litellm_mode]
         provider = LITELLM_PROVIDER_MAP.get(info.get("litellm_provider", ""))
         if provider is None:
             continue
         if EXCLUDE_PATTERN.search(key):
+            continue
+        # 图像模型只收录：有明确「每张」单价 + 干净模型名（跳过按像素/尺寸前缀的长尾）
+        image_price = info.get("output_cost_per_image")
+        if mode == "image" and (not image_price or "/" in key):
             continue
         public = _public_name(key)
         if public in existing:
@@ -114,11 +128,13 @@ async def seed_catalog(db, provider_ids: dict[str, int]) -> tuple[int, int]:
             provider_id=provider_ids[provider],
             litellm_model=key if "/" in key else f"{PROVIDERS[provider][0]}/{key}",
             display_name=public,
+            mode=mode,
             input_price_per_1m=round(in_cost * 1e6, 4) if in_cost else None,
             output_price_per_1m=round(out_cost * 1e6, 4) if out_cost else None,
+            image_price=image_price,
             context_window=info.get("max_input_tokens"),
             max_output_tokens=info.get("max_output_tokens"),
-            capabilities=_capabilities(info),
+            capabilities=_capabilities(info, mode),
             verified=False,
             enabled=True,
         ))
@@ -138,6 +154,24 @@ async def seed_catalog(db, provider_ids: dict[str, int]) -> tuple[int, int]:
             output_price_per_1m=m["out"],
             context_window=m["ctx"],
             capabilities=["chat"],
+            verified=True,
+            enabled=True,
+        ))
+        existing.add(m["model_id"])
+        added += 1
+
+    # 主流图像模型（手工补每张价）
+    for m in IMAGE_MODELS:
+        if m["model_id"] in existing:
+            continue
+        db.add(ModelCatalog(
+            model_id=m["model_id"],
+            provider_id=provider_ids[m["provider"]],
+            litellm_model=m["litellm_model"],
+            display_name=m["model_id"],
+            mode="image",
+            image_price=m["image_price"],
+            capabilities=["image"],
             verified=True,
             enabled=True,
         ))

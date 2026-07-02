@@ -90,8 +90,10 @@ class ModelCatalog(Base):
     provider_id: Mapped[int] = mapped_column(Integer, ForeignKey("providers.id"), nullable=False, index=True)
     litellm_model: Mapped[str] = mapped_column(String(200), nullable=False)  # 传给 LiteLLM 的全名
     display_name: Mapped[Optional[str]] = mapped_column(String(150), nullable=True)
+    mode: Mapped[str] = mapped_column(String(30), default="chat", nullable=False, server_default="chat")  # chat/embedding/image
     input_price_per_1m: Mapped[Optional[float]] = mapped_column(Float, nullable=True)   # USD / 1M tokens
     output_price_per_1m: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # USD / 1M tokens
+    image_price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)          # USD / 张（image 模型）
     context_window: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     max_output_tokens: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     capabilities: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)  # ["chat","vision","tools",…]
