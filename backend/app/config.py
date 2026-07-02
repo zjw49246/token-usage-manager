@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     max_retries: int = 2
     # 通道健康（P18）：鉴权类错误(401/403)时是否自动禁用通道
     channel_auto_disable: bool = False
+    # 定时通道巡检间隔（秒，P28；0=关闭）
+    channel_health_check_interval: int = 0
     # 上游调用超时（秒，P20 可配）
     upstream_timeout: int = 600
     # 上游 prompt 缓存读命中的 token 计价折扣（P27，默认 0.25 = 缓存输入按 1/4 价）

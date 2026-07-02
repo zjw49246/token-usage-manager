@@ -89,6 +89,7 @@ export const createChannel = (data) => api.post('/channels', data).then(r => r.d
 export const updateChannel = (id, data) => api.patch(`/channels/${id}`, data).then(r => r.data)
 export const deleteChannel = (id) => api.delete(`/channels/${id}`)
 export const testChannel = (id) => api.post(`/channels/${id}/test`).then(r => r.data)
+export const testAllChannels = () => api.post('/channels/test-all').then(r => r.data)
 export const listAliases = () => api.get('/aliases').then(r => r.data)
 export const createAlias = (data) => api.post('/aliases', data).then(r => r.data)
 export const deleteAlias = (alias) => api.delete(`/aliases/${alias}`)

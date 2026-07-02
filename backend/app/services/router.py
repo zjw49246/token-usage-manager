@@ -228,6 +228,10 @@ async def _mark_channel(channel_id: int | None, ok: bool, status_code: int | Non
                 if ch is None:
                     return
                 ch.status = "active" if ok else "error"
+                if ok:
+                    ch.success_count = (ch.success_count or 0) + 1
+                else:
+                    ch.error_count = (ch.error_count or 0) + 1
                 if not ok and settings.channel_auto_disable and status_code in (401, 403):
                     ch.enabled = False
                 await db.commit()

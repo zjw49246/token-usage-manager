@@ -82,6 +82,8 @@ uv run pytest tests/ -v
 | `test_model_rpm.py` | 按模型限速 | 该模型超 RPM 429，其它模型不受影响 |
 | `test_cache_tokens.py` | 上游缓存token折扣 | prompt 缓存读 token 按 ratio 折扣计费，记 cached_tokens |
 | `test_cache_tokens.py` | 无缓存全价 | 无缓存 token 时全价计费 |
+| `test_channel_monitor.py` | 成功率计数 | 真实流量成功/失败计入通道计数 |
+| `test_channel_monitor.py` | 巡检全部 | test-all 巡检所有启用通道，列表带 success_rate |
 | `test_cli.py` | 登录/建Key/用量/充值 | CLI 对 ASGI app 跑通登录→建 Key→用量→充值→余额 |
 | `test_cli.py` | models 命令 | 列出模型并计数 |
 | `test_cli.py` | config 命令 | 设置 base_url |

@@ -28,9 +28,17 @@ async def _seed_if_empty():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    import asyncio
+    from app.config import settings
     await init_db()
     await _seed_if_empty()
+    task = None
+    if settings.channel_health_check_interval > 0:
+        from app.services.channel_health import health_check_loop
+        task = asyncio.create_task(health_check_loop())
     yield
+    if task:
+        task.cancel()
 
 
 app = FastAPI(

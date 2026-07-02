@@ -6,7 +6,7 @@ import {
 import { PlusOutlined } from '@ant-design/icons'
 import {
   listChannels, listChannelProviders, createChannel, updateChannel, deleteChannel, testChannel, listCatalogModels,
-  listAliases, createAlias, deleteAlias,
+  listAliases, createAlias, deleteAlias, testAllChannels,
 } from '../api/index.js'
 import { useAuthStore } from '../stores/authStore.js'
 
@@ -101,6 +101,14 @@ export default function Channels() {
       ),
     },
     {
+      title: '成功率', key: 'success_rate',
+      render: (_, r) => r.success_rate != null
+        ? <span style={{ color: r.success_rate >= 0.9 ? '#52c41a' : r.success_rate >= 0.5 ? '#faad14' : '#f5222d' }}>
+            {(r.success_rate * 100).toFixed(1)}% <span style={{ color: '#aaa', fontSize: 12 }}>({r.success_count}/{r.success_count + r.error_count})</span>
+          </span>
+        : <span style={{ color: '#aaa' }}>—</span>,
+    },
+    {
       title: '操作', render: (_, r) => (
         <Space>
           <Button size="small" loading={testing === r.id} onClick={() => test(r.id)}>测试</Button>
@@ -116,7 +124,12 @@ export default function Channels() {
   return (
     <Card
       title="上游通道（负载均衡 / 故障转移）"
-      extra={<Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建通道</Button>}
+      extra={
+        <Space>
+          <Button onClick={async () => { try { const r = await testAllChannels(); const ok = r.results.filter(x => x.ok).length; message.success(`巡检完成：${ok}/${r.results.length} 健康`); load() } catch { message.error('巡检失败') } }}>巡检全部</Button>
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>新建通道</Button>
+        </Space>
+      }
     >
       <Alert type="info" showIcon style={{ marginBottom: 16 }}
         message="同一模型可配多条通道：按优先级分层、层内按权重加权随机；某条失败自动转下一条（max_retries 控制次数）。" />
