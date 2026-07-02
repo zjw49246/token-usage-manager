@@ -44,4 +44,4 @@
 - SQLite + Alembic 记住两条：`render_as_batch=True`、batch 内不用内联 FK。
 - 大表灌数据先想清楚「收录标准」，白名单 + 排除模式，别图省事全量灌。
 
-**commit**: abda0bd（feat/token-router-p0 分支）
+**commit**: 98c5b50（feat/token-router-p0 分支）
