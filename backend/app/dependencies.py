@@ -1,4 +1,6 @@
-from fastapi import Header, HTTPException, Depends, Path
+import ipaddress
+
+from fastapi import Header, HTTPException, Depends, Path, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
@@ -6,6 +8,38 @@ from app.config import settings
 from app.models import User, Membership
 from app.services.auth import verify_api_key
 from app.services.user_auth import decode_token
+
+
+def _client_ip(request: Request) -> str | None:
+    """取真实客户端 IP（兼容 Cloudflare / 反代）"""
+    for h in ("cf-connecting-ip", "x-real-ip"):
+        if request.headers.get(h):
+            return request.headers[h].strip()
+    xff = request.headers.get("x-forwarded-for")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.client.host if request.client else None
+
+
+def _ip_allowed(ip: str | None, allowed: list) -> bool:
+    if not allowed:
+        return True
+    if not ip:
+        return False
+    try:
+        addr = ipaddress.ip_address(ip)
+    except ValueError:
+        return False
+    for entry in allowed:
+        try:
+            if "/" in entry:
+                if addr in ipaddress.ip_network(entry, strict=False):
+                    return True
+            elif addr == ipaddress.ip_address(entry):
+                return True
+        except ValueError:
+            continue
+    return False
 
 # RBAC 角色层级：数值越大权限越高
 ROLE_LEVEL = {"member": 1, "admin": 2, "owner": 3}
@@ -22,6 +56,7 @@ async def require_admin(authorization: str = Header(...)):
 
 
 async def get_api_key_flexible(
+    request: Request,
     authorization: str | None = Header(None),
     x_api_key: str | None = Header(None),
     x_goog_api_key: str | None = Header(None),
@@ -42,6 +77,8 @@ async def get_api_key_flexible(
     api_key = await verify_api_key(db, raw)
     if api_key is None:
         raise HTTPException(status_code=401, detail="Invalid API key")
+    if getattr(api_key, "allowed_ips", None) and not _ip_allowed(_client_ip(request), api_key.allowed_ips):
+        raise HTTPException(status_code=403, detail="Client IP not allowed for this key")
     return api_key
 
 
@@ -98,14 +135,17 @@ def require_role(min_role: str):
 
 
 async def get_current_api_key(
+    request: Request,
     authorization: str = Header(...),
     db: AsyncSession = Depends(get_db),
 ):
-    """验证客户端 API Key，返回 ApiKey 对象"""
+    """验证客户端 API Key，返回 ApiKey 对象（含 IP 白名单校验）"""
     if not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Missing Bearer token")
     raw_key = authorization.removeprefix("Bearer ").strip()
     api_key = await verify_api_key(db, raw_key)
     if api_key is None:
         raise HTTPException(status_code=401, detail="Invalid API key")
+    if getattr(api_key, "allowed_ips", None) and not _ip_allowed(_client_ip(request), api_key.allowed_ips):
+        raise HTTPException(status_code=403, detail="Client IP not allowed for this key")
     return api_key

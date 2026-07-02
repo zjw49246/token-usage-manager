@@ -193,7 +193,7 @@ def _completion_kwargs(route: ModelRoute, body: dict) -> dict:
         kwargs["api_key"] = route.api_key
     if route.api_base:
         kwargs["api_base"] = route.api_base
-    kwargs["timeout"] = 600
+    kwargs["timeout"] = settings.upstream_timeout
     return kwargs
 
 

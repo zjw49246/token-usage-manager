@@ -30,6 +30,7 @@ export default function CreateKeyModal({ orgId, open, onClose, onCreated }) {
         max_calls: values.max_calls || null,
         max_rpm: values.max_rpm || null,
         max_cost_usd: values.max_cost_usd || null,
+        allowed_ips: values.allowed_ips?.length ? values.allowed_ips : null,
         valid_from: values.time_range?.[0]?.toISOString() || null,
         valid_until: values.time_range?.[1]?.toISOString() || null,
       }
@@ -122,6 +123,9 @@ export default function CreateKeyModal({ orgId, open, onClose, onCreated }) {
           </Form.Item>
           <Form.Item name="max_cost_usd" label="成本上限 USD（留空 = 不限）">
             <InputNumber min={0.01} step={1} style={{ width: '100%' }} placeholder="如：10" prefix="$" />
+          </Form.Item>
+          <Form.Item name="allowed_ips" label="IP 白名单（留空 = 不限，支持 CIDR）">
+            <Select mode="tags" allowClear placeholder="如 1.2.3.4 或 10.0.0.0/8，回车添加" tokenSeparators={[',', ' ']} />
           </Form.Item>
           <Form.Item name="time_range" label="生效时间区间（留空 = 不限）">
             <DatePicker.RangePicker showTime style={{ width: '100%' }} />

@@ -90,6 +90,9 @@ uv run pytest tests/ -v
 | `test_channel_health.py` | 鉴权错误自动禁用 | 401/403 且开关开时自动 enabled=false |
 | `test_playground.py` | 站内试聊 | /orgs/{id}/playground/chat 走隐藏 Key，Key 列表不显示 |
 | `test_playground.py` | 需成员身份 | 非成员 403 |
+| `test_ip_whitelist.py` | IP 白名单放行/拦截 | 命中 IP/CIDR 放行，其它 403 |
+| `test_ip_whitelist.py` | 无白名单不限 | 未设白名单任意 IP 放行 |
+| `test_ip_whitelist.py` | 入口也校验 | Anthropic 入口同样校验 IP |
 
 ## 手动集成测试
 

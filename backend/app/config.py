@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     max_retries: int = 2
     # 通道健康（P18）：鉴权类错误(401/403)时是否自动禁用通道
     channel_auto_disable: bool = False
+    # 上游调用超时（秒，P20 可配）
+    upstream_timeout: int = 600
 
     # 缓存（P7）：相同请求去重复用；命中按 multiplier 折算成本（0=免费）
     cache_enabled: bool = True
