@@ -22,12 +22,16 @@ from app.schemas import (
     ApiKeyCreate, ApiKeyUpdate, ApiKeyOut, ApiKeyCreated,
     UsageSummaryOut, UsageRecordOut, UsageListOut, OverviewStats,
     TrendPoint, TrendStats, KeyTokenShare,
-    CreditTopup, CreditTransactionOut, CreditBalanceOut, CheckoutIn, CheckoutOut,
+    CreditTopup, CreditTransactionOut, CreditBalanceOut, CheckoutIn, CheckoutOut, PlaygroundIn,
 )
 from app.services.auth import generate_api_key
 from app.services.credits import apply_credit
 from app.services import payments
+from app.services import router as model_router
+from app.services.quota import check_quota
 from app.config import settings
+
+PLAYGROUND_KEY_NAME = "__playground__"
 
 router = APIRouter(prefix="/orgs", tags=["orgs"])
 
@@ -202,7 +206,10 @@ async def _get_org_key(db: AsyncSession, org_id: int, key_id: int) -> ApiKey:
 
 @router.get("/{org_id}/keys", response_model=list[ApiKeyOut])
 async def list_org_keys(org_id: int, m: Membership = Depends(get_membership), db: AsyncSession = Depends(get_db)):
-    keys = (await db.execute(select(ApiKey).where(ApiKey.org_id == org_id).order_by(ApiKey.created_at.desc()))).scalars().all()
+    keys = (await db.execute(
+        select(ApiKey).where(ApiKey.org_id == org_id, ApiKey.name != PLAYGROUND_KEY_NAME)
+        .order_by(ApiKey.created_at.desc())
+    )).scalars().all()
     summaries = {s.api_key_id: s for s in (await db.execute(select(UsageSummary))).scalars().all()}
     return [_key_to_out(k, summaries.get(k.id)) for k in keys]
 
@@ -284,6 +291,41 @@ async def org_key_usage(
         items=[UsageRecordOut.model_validate(r) for r in records],
         total=total, page=page, page_size=page_size,
     )
+
+
+# ── Playground（站内测试）────────────────────────────────────────────────────────
+
+async def _playground_key(db: AsyncSession, org_id: int, user_id: int) -> ApiKey:
+    """惰性创建组织隐藏 Playground Key（复用配额/计费/记账，不在 Key 列表显示）"""
+    key = (
+        await db.execute(select(ApiKey).where(ApiKey.org_id == org_id, ApiKey.name == PLAYGROUND_KEY_NAME))
+    ).scalar_one_or_none()
+    if key is None:
+        _raw, key_hash, key_prefix = generate_api_key()
+        key = ApiKey(key_hash=key_hash, key_prefix=key_prefix, name=PLAYGROUND_KEY_NAME,
+                     org_id=org_id, created_by_user_id=user_id, is_active=True)
+        db.add(key)
+        await db.commit()
+        await db.refresh(key)
+    return key
+
+
+@router.post("/{org_id}/playground/chat")
+async def playground_chat(
+    org_id: int, body: PlaygroundIn,
+    m: Membership = Depends(get_membership),
+    user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db),
+):
+    """站内试聊：用组织隐藏 Key 走真实路由（计入组织用量/额度），非流式返回。"""
+    key = await _playground_key(db, org_id, user.id)
+    routes = await model_router.resolve_routes(db, body.model)
+    await check_quota(db, key, body.model)
+    payload = {"model": body.model, "messages": body.messages, "stream": False}
+    if body.temperature is not None:
+        payload["temperature"] = body.temperature
+    if body.max_tokens is not None:
+        payload["max_tokens"] = body.max_tokens
+    return await model_router.route_chat_completion(key, routes, payload)
 
 
 # ── 计费 / 额度 ────────────────────────────────────────────────────────────────

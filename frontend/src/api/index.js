@@ -74,6 +74,9 @@ export const createCheckout = (orgId, data) => api.post(`/orgs/${orgId}/credits/
 // ── Catalog ──
 export const listCatalogModels = (params) => api.get('/catalog/models', { params }).then(r => r.data)
 
+// ── Playground ──
+export const playgroundChat = (orgId, data) => api.post(`/orgs/${orgId}/playground/chat`, data).then(r => r.data)
+
 // ── Channels (superadmin) ──
 export const listChannels = () => api.get('/channels').then(r => r.data)
 export const listChannelProviders = () => api.get('/channels/providers').then(r => r.data)
