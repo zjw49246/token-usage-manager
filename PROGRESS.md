@@ -1,5 +1,20 @@
 # 经验教训沉淀
 
+## token-router 改造 P9：Stripe 支付
+
+**要点 / 决策**
+- Checkout + webhook 异步入账：前端发起 checkout → Stripe 支付 → webhook `checkout.session.completed` → 入账。
+- **幂等**：以 Stripe 的 payment_intent/session id 为 `ref`，入账前查 credit_transactions 是否已有同 ref 的 topup，
+  避免 webhook 重复投递（Stripe 会重试）导致重复加钱。
+- **金额以 amount_total（实付）为准**，不信任前端/metadata 里的金额，防篡改。
+- webhook 端点无鉴权但**验签**（stripe 签名），且 Stripe 未配置时整套支付功能关闭、手动充值仍在。
+
+**以后如何避免**
+- 任何异步支付回调都要幂等（外部会重试）+ 以支付方的实付金额为准 + 验签，三者缺一都会出资损或安全问题。
+- 第三方能力做成「可选开关」：未配置时优雅降级到内置方案（手动充值），不要让缺配置直接 500。
+
+**commit**: 见本分支（feat/token-router-p9-stripe）
+
 ## token-router 改造 P8：补齐端点类型（embeddings / image）
 
 **要点 / 决策**
