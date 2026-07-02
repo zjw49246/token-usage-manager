@@ -59,6 +59,14 @@ app.include_router(proxy.router)
 app.include_router(ingress_anthropic.router)
 app.include_router(ingress_gemini.router)
 
+
+@app.get("/metrics")
+async def metrics():
+    """Prometheus 抓取端点"""
+    from fastapi.responses import Response
+    from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+    return Response(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
 # 挂载前端静态文件（build 后）
 _frontend_dist = Path(__file__).parent.parent.parent / "frontend" / "dist"
 if _frontend_dist.exists():
