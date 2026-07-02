@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom'
 import { Spin } from 'antd'
 import Layout from './components/Layout.jsx'
 import Login from './pages/Login.jsx'
+import OAuthCallback from './pages/OAuthCallback.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import ApiKeys from './pages/ApiKeys.jsx'
 import KeyDetail from './pages/KeyDetail.jsx'
@@ -34,6 +35,7 @@ export default function App() {
   if (!accessToken) {
     return (
       <Routes>
+        <Route path="/oauth/callback" element={<OAuthCallback />} />
         <Route path="*" element={<Login />} />
       </Routes>
     )

@@ -138,6 +138,11 @@ class RefreshIn(BaseModel):
     refresh_token: str
 
 
+class OAuthExchangeIn(BaseModel):
+    code: str
+    redirect_uri: str
+
+
 class UserOut(BaseModel):
     id: int
     email: str

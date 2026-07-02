@@ -1,5 +1,21 @@
 # 经验教训沉淀
 
+## token-router 改造 P11：第三方登录 SSO（GitHub/Google）
+
+**要点 / 决策**
+- provider 注册表（authorize/token/userinfo URL + scope），未配 client_id 的 provider 自动不启用；
+  前端据 `/auth/oauth/providers` 动态渲染登录按钮，无配置就不显示。
+- 抽出 `provision_user`（建号+个人组织+赠额度），注册与 SSO 首登共用；SSO 首登按邮箱 find-or-create，
+  已存在则直接登录同账号（避免重复建号/多组织）。
+- GitHub 的主邮箱可能不在 /user 里，需另查 /user/emails 取 primary+verified。
+- state 存 sessionStorage 前端比对做 CSRF 防护（SPA 无服务端 session，故客户端校验）。
+
+**以后如何避免**
+- 多 provider 的 OAuth 用「注册表 + 统一 exchange」，各家差异（如 GitHub 邮箱另取）收敛到少量分支。
+- 用户建号逻辑（含建组织/赠额度）要抽成单一入口，任何新登录方式都复用，避免各处漏建组织。
+
+**commit**: 见本分支（feat/token-router-p11-sso）
+
 ## token-router 改造 P10：成员级预算
 
 **要点 / 决策**

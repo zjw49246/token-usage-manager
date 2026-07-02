@@ -41,6 +41,9 @@ api.interceptors.response.use(
 export const register = (data) => api.post('/auth/register', data, { _skipAuth: true }).then(r => r.data)
 export const login = (data) => api.post('/auth/login', data, { _skipAuth: true }).then(r => r.data)
 export const fetchMe = () => api.get('/auth/me').then(r => r.data)
+export const oauthProviders = () => api.get('/auth/oauth/providers', { _skipAuth: true }).then(r => r.data)
+export const oauthUrl = (provider, redirect_uri) => api.get(`/auth/oauth/${provider}/url`, { params: { redirect_uri }, _skipAuth: true }).then(r => r.data)
+export const oauthExchange = (provider, data) => api.post(`/auth/oauth/${provider}/exchange`, data, { _skipAuth: true }).then(r => r.data)
 
 // ── Orgs ──
 export const listOrgs = () => api.get('/orgs').then(r => r.data)

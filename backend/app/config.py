@@ -43,6 +43,12 @@ class Settings(BaseSettings):
     stripe_secret_key: str = ""
     stripe_webhook_secret: str = ""
     stripe_currency: str = "usd"
+
+    # 第三方登录（P11 SSO）：留空则该 provider 不启用
+    oauth_github_client_id: str = ""
+    oauth_github_client_secret: str = ""
+    oauth_google_client_id: str = ""
+    oauth_google_client_secret: str = ""
     database_url: str = "sqlite+aiosqlite:///./data/token_manager.db"
     host: str = "0.0.0.0"
     port: int = 8000

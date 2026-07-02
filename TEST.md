@@ -68,6 +68,11 @@ uv run pytest tests/ -v
 | `test_stripe.py` | webhook 忽略非充值 | 非充值完成事件不入账 |
 | `test_member_budget.py` | 成员预算回显+强制 | 设成员预算并回显；累计消费超预算返回 429 |
 | `test_member_budget.py` | 无预算不限 | 未设预算的成员可无限调用 |
+| `test_sso.py` | providers 反映配置 | 未配空；配了 github 返回 [github] |
+| `test_sso.py` | 授权 URL | 返回带 client_id/redirect_uri/state 的 authorize_url |
+| `test_sso.py` | 未配置拦截 | 未配 provider 的 /url 返回 400 |
+| `test_sso.py` | exchange 首次建号 | code 换 JWT，首登自动建用户+个人组织 |
+| `test_sso.py` | exchange 已有邮箱登录 | 邮箱已存在则登录同账号不重复建 |
 
 ## 手动集成测试
 

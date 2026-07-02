@@ -1,14 +1,33 @@
-import { useState } from 'react'
-import { Card, Form, Input, Button, Tabs, Typography, message } from 'antd'
+import { useEffect, useState } from 'react'
+import { Card, Form, Input, Button, Tabs, Typography, message, Divider, Space } from 'antd'
+import { GithubOutlined, GoogleOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
-import { login, register, fetchMe, listOrgs } from '../api/index.js'
+import { login, register, fetchMe, listOrgs, oauthProviders, oauthUrl } from '../api/index.js'
 import { useAuthStore } from '../stores/authStore.js'
+
+const PROVIDER_META = {
+  github: { icon: <GithubOutlined />, label: 'GitHub' },
+  google: { icon: <GoogleOutlined />, label: 'Google' },
+}
 
 export default function Login() {
   const [tab, setTab] = useState('login')
   const [loading, setLoading] = useState(false)
+  const [providers, setProviders] = useState([])
   const navigate = useNavigate()
   const { setTokens, setUser, setOrgs } = useAuthStore()
+
+  useEffect(() => { oauthProviders().then((d) => setProviders(d.providers)).catch(() => {}) }, [])
+
+  const onOAuth = async (provider) => {
+    try {
+      const redirect_uri = window.location.origin + '/oauth/callback'
+      const { authorize_url, state } = await oauthUrl(provider, redirect_uri)
+      sessionStorage.setItem('oauth_provider', provider)
+      sessionStorage.setItem('oauth_state', state)
+      window.location.href = authorize_url
+    } catch (e) { message.error('第三方登录未配置') }
+  }
 
   const bootstrap = async (tokens) => {
     setTokens(tokens)
@@ -82,6 +101,18 @@ export default function Login() {
             },
           ]}
         />
+        {providers.length > 0 && (
+          <>
+            <Divider plain style={{ color: '#aaa' }}>或</Divider>
+            <Space direction="vertical" style={{ width: '100%' }}>
+              {providers.map((p) => (
+                <Button key={p} block size="large" icon={PROVIDER_META[p]?.icon} onClick={() => onOAuth(p)}>
+                  用 {PROVIDER_META[p]?.label || p} 登录
+                </Button>
+              ))}
+            </Space>
+          </>
+        )}
       </Card>
     </div>
   )
