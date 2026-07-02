@@ -2,6 +2,19 @@
 
 > **重要：Claude 必须自主维护本文件。** 架构或约定变化时更新，保持简洁。
 
+## 架构与改造方向
+
+本项目正在从「Gemini/DeepSeek 用量代理」改造为 TokenRouter 式的多供应商 AI 网关，
+完整方案见 `docs/TOKEN_ROUTER_TRANSFORM.md`（分 P0~P5 六期）。
+
+- **后端**：FastAPI + SQLAlchemy 2.0 async + SQLite(WAL)，`uv` 管理依赖；`backend/app/`
+- **迁移**：Alembic（`backend/alembic/`）。已有部署先 `alembic stamp 001` 再 `alembic upgrade head`；
+  测试/全新开发环境由 `create_all` 直接建全量 schema
+- **Seed**：`uv run python -m scripts.seed` 灌供应商注册表 + 模型目录（价格来自 litellm.model_cost）+ 默认组织回填
+- **数据模型**（P0 后）：多租户（organizations/users/memberships/credit_transactions）+
+  平台目录（providers/model_catalog）+ 原有（api_keys/usage_records/usage_summary，已加 org_id/cost 列）
+- **前端**：React18 + Vite + antd5，build 后由 FastAPI 托管；`frontend/`
+
 ## Git 信息
 
 - Remote: https://github.com/zjw49246/token-usage-manager

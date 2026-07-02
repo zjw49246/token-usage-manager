@@ -20,6 +20,9 @@ uv run pytest tests/ -v
 | `test_quota.py` | 统计接口 | /admin/stats/overview 返回正确字段 |
 | `test_quota.py` | 并发不绕过调用配额 | max_calls=3 并发 20 次，恰好放行 3 次，其余 429 |
 | `test_quota.py` | 并发记账不崩 | 首次并发记账无 UNIQUE 冲突，token 累加无丢失 |
+| `test_p0_schema.py` | 新表 CRUD 冒烟 | 多租户/供应商/目录/台账新表可写可查 |
+| `test_p0_schema.py` | seed 幂等 | 两次 seed 结果一致；litellm 灌入 >100 模型；遗留模型名仍在目录 |
+| `test_p0_schema.py` | 默认组织回填 | 已有 API Key 在 seed 后回填到默认组织 |
 
 ## 手动集成测试
 
@@ -64,6 +67,18 @@ curl http://localhost:8000/admin/stats/overview \
 ### 6. 测试 RPM 限速
 
 创建一个 `max_rpm=2` 的 Key，1 分钟内发送 3 次请求，第 3 次应返回 HTTP 429。
+
+### 7. 迁移验证（P0 引入 Alembic）
+
+```bash
+cd backend
+# 全新库：直接升到最新
+DATABASE_URL="sqlite+aiosqlite:////tmp/mig.db" uv run alembic upgrade head
+# 已有部署（此前由 create_all 建库）：先打基线戳再升级
+uv run alembic stamp 001 && uv run alembic upgrade head
+# Seed 目录与默认组织（幂等，可重复执行）
+uv run python -m scripts.seed
+```
 
 ## 新增功能时的测试规范
 
