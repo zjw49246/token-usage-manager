@@ -34,7 +34,9 @@
   配置存 `~/.tokenrouter/config.json`；console script `tr`（需 pip install 打包后可用）
 - **前端**（P2b/P4 后）：React18 + Vite + antd5，build 后由 FastAPI 托管；`frontend/`。
   JWT 会话（`stores/authStore.js`）+ 登录注册页 + 顶栏组织切换器 + 成员管理页；
-  数据页走 `/orgs/{currentOrgId}/*`；模型目录对比页（Models）+ 额度计费页（Billing）；旧 adminStore 已删
+  数据页走 `/orgs/{currentOrgId}/*`；模型目录对比页（Models）+ 额度计费页（Billing）；旧 adminStore 已删。
+  i18n（P13）：轻量 `src/i18n.js`（zustand + 字典 + `t()`），中英切换 + antd ConfigProvider locale；
+  已译导航/登录/头部，深层表单串留 t() 脚手架增量补
 
 ## Git 信息
 

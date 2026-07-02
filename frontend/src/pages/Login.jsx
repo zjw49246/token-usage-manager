@@ -4,6 +4,7 @@ import { GithubOutlined, GoogleOutlined } from '@ant-design/icons'
 import { useNavigate } from 'react-router-dom'
 import { login, register, fetchMe, listOrgs, oauthProviders, oauthUrl } from '../api/index.js'
 import { useAuthStore } from '../stores/authStore.js'
+import { useI18n } from '../i18n.js'
 
 const PROVIDER_META = {
   github: { icon: <GithubOutlined />, label: 'GitHub' },
@@ -16,6 +17,7 @@ export default function Login() {
   const [providers, setProviders] = useState([])
   const navigate = useNavigate()
   const { setTokens, setUser, setOrgs } = useAuthStore()
+  const { lang, setLang, t } = useI18n()
 
   useEffect(() => { oauthProviders().then((d) => setProviders(d.providers)).catch(() => {}) }, [])
 
@@ -50,7 +52,7 @@ export default function Login() {
     setLoading(true)
     try {
       await bootstrap(await register(values))
-      message.success('注册成功，已为你创建个人组织')
+      message.success(t('auth.registerOk'))
     } catch (e) {
       message.error(e.response?.data?.detail || '注册失败')
     } finally { setLoading(false) }
@@ -59,9 +61,14 @@ export default function Login() {
   return (
     <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f0f2f5' }}>
       <Card style={{ width: 400 }}>
-        <div style={{ textAlign: 'center', marginBottom: 16 }}>
+        <div style={{ textAlign: 'center', marginBottom: 8 }}>
           <Typography.Title level={3} style={{ marginBottom: 0 }}>TokenRouter</Typography.Title>
-          <Typography.Text type="secondary">统一多供应商 AI 模型网关</Typography.Text>
+          <Typography.Text type="secondary">{t('app.subtitle')}</Typography.Text>
+        </div>
+        <div style={{ textAlign: 'right', marginBottom: 8 }}>
+          <Button type="link" size="small" onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')}>
+            {lang === 'zh' ? 'English' : '中文'}
+          </Button>
         </div>
         <Tabs
           activeKey={tab}
@@ -69,33 +76,33 @@ export default function Login() {
           centered
           items={[
             {
-              key: 'login', label: '登录',
+              key: 'login', label: t('auth.login'),
               children: (
                 <Form layout="vertical" onFinish={onLogin}>
-                  <Form.Item name="email" label="邮箱" rules={[{ required: true, type: 'email' }]}>
+                  <Form.Item name="email" label={t('auth.email')} rules={[{ required: true, type: 'email' }]}>
                     <Input placeholder="you@example.com" size="large" />
                   </Form.Item>
-                  <Form.Item name="password" label="密码" rules={[{ required: true }]}>
-                    <Input.Password placeholder="密码" size="large" />
+                  <Form.Item name="password" label={t('auth.password')} rules={[{ required: true }]}>
+                    <Input.Password placeholder={t('auth.password')} size="large" />
                   </Form.Item>
-                  <Button type="primary" htmlType="submit" block size="large" loading={loading}>登录</Button>
+                  <Button type="primary" htmlType="submit" block size="large" loading={loading}>{t('auth.login')}</Button>
                 </Form>
               ),
             },
             {
-              key: 'register', label: '注册',
+              key: 'register', label: t('auth.register'),
               children: (
                 <Form layout="vertical" onFinish={onRegister}>
-                  <Form.Item name="name" label="姓名" rules={[{ required: true }]}>
-                    <Input placeholder="你的名字" size="large" />
+                  <Form.Item name="name" label={t('auth.name')} rules={[{ required: true }]}>
+                    <Input placeholder={t('auth.name')} size="large" />
                   </Form.Item>
-                  <Form.Item name="email" label="邮箱" rules={[{ required: true, type: 'email' }]}>
+                  <Form.Item name="email" label={t('auth.email')} rules={[{ required: true, type: 'email' }]}>
                     <Input placeholder="you@example.com" size="large" />
                   </Form.Item>
-                  <Form.Item name="password" label="密码" rules={[{ required: true, min: 8, message: '至少 8 位' }]}>
-                    <Input.Password placeholder="至少 8 位" size="large" />
+                  <Form.Item name="password" label={t('auth.password')} rules={[{ required: true, min: 8, message: '≥ 8' }]}>
+                    <Input.Password placeholder="≥ 8" size="large" />
                   </Form.Item>
-                  <Button type="primary" htmlType="submit" block size="large" loading={loading}>注册</Button>
+                  <Button type="primary" htmlType="submit" block size="large" loading={loading}>{t('auth.register')}</Button>
                 </Form>
               ),
             },
@@ -103,11 +110,11 @@ export default function Login() {
         />
         {providers.length > 0 && (
           <>
-            <Divider plain style={{ color: '#aaa' }}>或</Divider>
+            <Divider plain style={{ color: '#aaa' }}>{t('auth.or')}</Divider>
             <Space direction="vertical" style={{ width: '100%' }}>
               {providers.map((p) => (
                 <Button key={p} block size="large" icon={PROVIDER_META[p]?.icon} onClick={() => onOAuth(p)}>
-                  用 {PROVIDER_META[p]?.label || p} 登录
+                  {t('auth.loginWith', { p: PROVIDER_META[p]?.label || p })}
                 </Button>
               ))}
             </Space>

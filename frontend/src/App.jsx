@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
-import { Spin } from 'antd'
+import { Spin, ConfigProvider } from 'antd'
+import zhCN from 'antd/locale/zh_CN'
+import enUS from 'antd/locale/en_US'
+import { useI18n } from './i18n.js'
 import Layout from './components/Layout.jsx'
 import Login from './pages/Login.jsx'
 import OAuthCallback from './pages/OAuthCallback.jsx'
@@ -18,6 +21,7 @@ import { fetchMe, listOrgs } from './api/index.js'
 
 export default function App() {
   const { accessToken, user, setUser, setOrgs, logout } = useAuthStore()
+  const lang = useI18n((s) => s.lang)
   const [booting, setBooting] = useState(!!accessToken)
 
   // 刷新页面后用已存的 token 恢复会话
@@ -32,34 +36,35 @@ export default function App() {
     }
   }, [])
 
+  let inner
   if (!accessToken) {
-    return (
+    inner = (
       <Routes>
         <Route path="/oauth/callback" element={<OAuthCallback />} />
         <Route path="*" element={<Login />} />
       </Routes>
     )
+  } else if (booting) {
+    inner = <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}><Spin size="large" /></div>
+  } else {
+    inner = (
+      <Layout>
+        <Routes>
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/keys" element={<ApiKeys />} />
+          <Route path="/keys/:id" element={<KeyDetail />} />
+          <Route path="/models" element={<Models />} />
+          <Route path="/channels" element={<Channels />} />
+          <Route path="/billing" element={<Billing />} />
+          <Route path="/members" element={<Members />} />
+          <Route path="/integration" element={<Integration />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </Layout>
+    )
   }
 
-  if (booting) {
-    return <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}><Spin size="large" /></div>
-  }
-
-  return (
-    <Layout>
-      <Routes>
-        <Route path="/" element={<Navigate to="/dashboard" replace />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/keys" element={<ApiKeys />} />
-        <Route path="/keys/:id" element={<KeyDetail />} />
-        <Route path="/models" element={<Models />} />
-        <Route path="/channels" element={<Channels />} />
-        <Route path="/billing" element={<Billing />} />
-        <Route path="/members" element={<Members />} />
-        <Route path="/integration" element={<Integration />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-      </Routes>
-    </Layout>
-  )
+  return <ConfigProvider locale={lang === 'en' ? enUS : zhCN}>{inner}</ConfigProvider>
 }
