@@ -132,6 +132,16 @@ async def responses(
     return await model_router.route_responses(api_key, routes, body)
 
 
+@router.post("/videos/generations")
+async def videos_generations(
+    request: Request,
+    api_key: ApiKey = Depends(get_current_api_key),
+    db: AsyncSession = Depends(get_db),
+):
+    routes, body = await _prepare(request, api_key, db)
+    return await model_router.route_video_generation(api_key, routes, body)
+
+
 @router.post("/audio/speech")
 async def audio_speech(
     request: Request,

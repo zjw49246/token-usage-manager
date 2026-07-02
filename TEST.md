@@ -82,6 +82,8 @@ uv run pytest tests/ -v
 | `test_audio.py` | TTS 返回音频 | /v1/audio/speech 返回二进制 + 计价 |
 | `test_audio.py` | STT 转写 | /v1/audio/transcriptions multipart 上传 → 文本 |
 | `test_audio.py` | TTS 未知模型 404 | 未知模型 404 |
+| `test_video.py` | 视频生成 | /v1/videos/generations 转发+计价 |
+| `test_video.py` | 视频未知模型 404 | 未知模型 404 |
 
 ## 手动集成测试
 
