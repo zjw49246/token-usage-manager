@@ -211,7 +211,7 @@ export default function Integration() {
         </Paragraph>
         <Paragraph style={{ marginBottom: 0 }}>
           <Text strong>可用模型：</Text>
-          <Text type="secondary">目录含 OpenAI / Anthropic / Google / DeepSeek / Mistral / Groq / xAI 等 170+ 模型，
+          <Text type="secondary">目录含 OpenAI / Anthropic / Google / DeepSeek / Mistral / Groq / xAI 等 700+ 模型（18 家供应商），
           创建 Key 时可搜索选择；调用时 <Text code>model</Text> 填目录中的模型名即可。</Text>
         </Paragraph>
       </Card>

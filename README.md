@@ -1,7 +1,7 @@
 # TokenRouter
 
 统一的多供应商 AI 模型网关：把 OpenAI / Anthropic / Google / DeepSeek / Mistral / Groq / xAI 等
-170+ 模型聚合成一套接口，**同时兼容 OpenAI、Anthropic(Claude)、Gemini 三种 API 格式**——
+700+ 模型聚合成一套接口，**同时兼容 OpenAI、Anthropic(Claude)、Gemini 三种 API 格式**——
 任意一家 SDK 把 `base_url` 指过来即可，无需改代码即可切换模型。内置多租户管理后台：
 组织/成员 RBAC、每 Key 配额、按 USD 成本的预付费计费、模型价格对比。
 
@@ -78,7 +78,7 @@ client = genai.Client(api_key="tum_...", http_options={"base_url":"http://your-s
 client.models.generate_content(model="gemini-2.5-flash", contents="Hi")
 ```
 
-`model` 填模型目录里的任意名字即可（在「模型目录」页查看全部 170+ 模型与价格）。
+`model` 填模型目录里的任意名字即可（在「模型目录」页查看全部 700+ 模型与价格）。
 
 ## 配置说明（.env）
 
@@ -102,7 +102,7 @@ client.models.generate_content(model="gemini-2.5-flash", contents="Hi")
 
 - **总览**：成本/Token/调用卡片、趋势折线图、各 Key 占比饼图（按当前组织）
 - **API Keys**：列表/创建/启停/删除，含成本上限与目录模型选择
-- **模型目录**：170+ 模型对比（供应商/输入输出价/上下文窗口/能力/verified，可搜索排序）
+- **模型目录**：700+ 模型对比（供应商/输入输出价/上下文窗口/能力/verified，可搜索排序）
 - **额度计费**：余额、充值（owner）、额度流水台账
 - **成员**：邀请/移除成员、改角色（RBAC）
 - **接入指南**：OpenAI / Anthropic / Gemini 三种 SDK 示例
