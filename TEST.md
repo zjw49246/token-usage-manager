@@ -76,6 +76,9 @@ uv run pytest tests/ -v
 | `test_oidc.py` | Discord 登录 | providers 含 discord，授权 URL 正确 |
 | `test_oidc.py` | 通用 OIDC | issuer 发现端点，授权 URL 正确 |
 | `test_oidc.py` | Discord 首登建号 | exchange 建用户+组织 |
+| `test_usage_logs.py` | 组织日志+过滤 | 全量请求日志，按状态过滤 |
+| `test_usage_logs.py` | CSV 导出 | 导出 CSV 表头+行数正确 |
+| `test_usage_logs.py` | 需成员 | 非成员 403 |
 | `test_cli.py` | 登录/建Key/用量/充值 | CLI 对 ASGI app 跑通登录→建 Key→用量→充值→余额 |
 | `test_cli.py` | models 命令 | 列出模型并计数 |
 | `test_cli.py` | config 命令 | 设置 base_url |
