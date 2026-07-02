@@ -88,6 +88,8 @@ uv run pytest tests/ -v
 | `test_channel_health.py` | 通道测试失败 | test 端点报错 → status=error |
 | `test_channel_health.py` | 故障自动标记 | 失败通道 status=error，成功通道 active |
 | `test_channel_health.py` | 鉴权错误自动禁用 | 401/403 且开关开时自动 enabled=false |
+| `test_playground.py` | 站内试聊 | /orgs/{id}/playground/chat 走隐藏 Key，Key 列表不显示 |
+| `test_playground.py` | 需成员身份 | 非成员 403 |
 
 ## 手动集成测试
 

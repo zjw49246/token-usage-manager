@@ -11,6 +11,7 @@ import Dashboard from './pages/Dashboard.jsx'
 import ApiKeys from './pages/ApiKeys.jsx'
 import KeyDetail from './pages/KeyDetail.jsx'
 import Models from './pages/Models.jsx'
+import Playground from './pages/Playground.jsx'
 import Channels from './pages/Channels.jsx'
 import Billing from './pages/Billing.jsx'
 import Members from './pages/Members.jsx'
@@ -55,6 +56,7 @@ export default function App() {
           <Route path="/keys" element={<ApiKeys />} />
           <Route path="/keys/:id" element={<KeyDetail />} />
           <Route path="/models" element={<Models />} />
+          <Route path="/playground" element={<Playground />} />
           <Route path="/channels" element={<Channels />} />
           <Route path="/billing" element={<Billing />} />
           <Route path="/members" element={<Members />} />

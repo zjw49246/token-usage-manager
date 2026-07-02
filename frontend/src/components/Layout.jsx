@@ -2,7 +2,7 @@ import { Layout as AntLayout, Menu, Typography, Select, Dropdown, Avatar, Space,
 import {
   DashboardOutlined, KeyOutlined, CodeOutlined, SettingOutlined,
   TeamOutlined, UserOutlined, LogoutOutlined, DownOutlined,
-  AppstoreOutlined, DollarOutlined, ClusterOutlined,
+  AppstoreOutlined, DollarOutlined, ClusterOutlined, ExperimentOutlined,
 } from '@ant-design/icons'
 import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
@@ -16,6 +16,7 @@ const baseMenu = (t) => [
   { key: '/dashboard', icon: <DashboardOutlined />, label: t('nav.dashboard') },
   { key: '/keys', icon: <KeyOutlined />, label: t('nav.keys') },
   { key: '/models', icon: <AppstoreOutlined />, label: t('nav.models') },
+  { key: '/playground', icon: <ExperimentOutlined />, label: t('nav.playground') },
   { key: '/billing', icon: <DollarOutlined />, label: t('nav.billing') },
   { key: '/members', icon: <TeamOutlined />, label: t('nav.members') },
   { key: '/integration', icon: <CodeOutlined />, label: t('nav.integration') },

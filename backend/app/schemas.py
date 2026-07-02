@@ -222,6 +222,13 @@ class CheckoutOut(BaseModel):
     checkout_url: str
 
 
+class PlaygroundIn(BaseModel):
+    model: str
+    messages: list[dict]
+    temperature: Optional[float] = None
+    max_tokens: Optional[int] = Field(None, ge=1)
+
+
 # ── 上游通道（P6 负载均衡/故障转移）─────────────────────────────────────────────
 
 class ChannelCreate(BaseModel):
