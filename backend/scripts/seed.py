@@ -118,6 +118,10 @@ async def seed_catalog(db, provider_ids: dict[str, int]) -> tuple[int, int]:
         image_price = info.get("output_cost_per_image")
         if mode == "image" and (not image_price or "/" in key):
             continue
+        # litellm 价格表里个别 chat 模型被误标 embedding（如 gemini-1.5-flash）；
+        # embedding 模型名几乎必含 "embed"，据此过滤掉误标项
+        if mode == "embedding" and "embed" not in key.lower():
+            continue
         public = _public_name(key)
         if public in existing:
             continue
@@ -182,6 +186,19 @@ async def seed_catalog(db, provider_ids: dict[str, int]) -> tuple[int, int]:
     return added, len(existing)
 
 
+async def cleanup_mislabeled(db) -> int:
+    """自愈：删除被误标为 embedding 的 chat 模型（名字不含 embed），幂等"""
+    from sqlalchemy import delete, func as sqlfunc
+    result = await db.execute(
+        delete(ModelCatalog).where(
+            ModelCatalog.mode == "embedding",
+            ~sqlfunc.lower(ModelCatalog.model_id).like("%embed%"),
+        )
+    )
+    await db.commit()
+    return result.rowcount or 0
+
+
 async def seed_default_org(db) -> None:
     """建默认组织并回填现有 Key / 用量的归属（幂等）"""
     org = (await db.execute(select(Organization).where(Organization.slug == "default"))).scalar_one_or_none()
@@ -201,6 +218,9 @@ async def main() -> None:
         print(f"providers: {len(provider_ids)} -> {sorted(provider_ids)}")
         added, total = await seed_catalog(db, provider_ids)
         print(f"model_catalog: +{added} (total {total})")
+        removed = await cleanup_mislabeled(db)
+        if removed:
+            print(f"cleaned up {removed} mislabeled embedding rows")
         await seed_default_org(db)
         print("default org created & api_keys/usage_records backfilled")
 
