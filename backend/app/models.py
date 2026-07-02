@@ -18,6 +18,7 @@ class Organization(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     slug: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
     credit_balance_usd: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
+    price_multiplier: Mapped[float] = mapped_column(Float, default=1.0, nullable=False, server_default="1")  # 组织价格倍率
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
 
     memberships: Mapped[list["Membership"]] = relationship(back_populates="organization", lazy="noload")
