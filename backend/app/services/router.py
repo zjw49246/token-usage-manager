@@ -526,6 +526,12 @@ async def route_responses(api_key: ApiKey, routes, body: dict) -> JSONResponse:
     return JSONResponse(content=data)
 
 
+async def route_video_generation(api_key: ApiKey, routes, body: dict) -> JSONResponse:
+    """视频生成 /v1/videos/generations（litellm.avideo_generation）"""
+    data = await _route_litellm_json(api_key, routes, body, litellm.avideo_generation)
+    return JSONResponse(content=data)
+
+
 async def route_image_generation(api_key: ApiKey, routes, body: dict) -> JSONResponse:
     """OpenAI /v1/images/generations（按张计价）"""
     n = int(body.get("n", 1) or 1)

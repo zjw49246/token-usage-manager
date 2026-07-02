@@ -75,6 +75,10 @@ async def _seed_minimal_catalog():
                 model_id="whisper-1", provider_id=google.id,
                 litellm_model="openai/whisper-1", mode="audio", capabilities=["audio"],
             ),
+            ModelCatalog(
+                model_id="veo-3.1", provider_id=google.id,
+                litellm_model="gemini/veo-3.1-generate-preview", mode="video", capabilities=["video"],
+            ),
         ])
         await db.commit()
 

@@ -1,5 +1,19 @@
 # 经验教训沉淀
 
+## token-router 改造 P15-P17：补全端点矩阵（rerank/responses/audio/video）
+
+**要点**
+- litellm 对每种端点都有对应异步函数（arerank/aresponses/aspeech/atranscription/avideo_generation），
+  统一走 `_route_litellm_json`（JSON 类）或专用二进制/multipart 处理；成本用 `litellm.completion_cost` 兜底
+  （非 token 计价的 audio/video/rerank 也能算出真实成本）。
+- 之前 seed 的 EXCLUDE_PATTERN 排除了 audio/whisper/tts，要开这些端点必须放开；
+  同时给 catalog 的 mode 增加 audio/video/rerank，前端 Models 页同步加类型标签与筛选。
+- audio 特殊：TTS 返回二进制（按 response_format 设 media_type），STT 是 multipart 上传（FastAPI File/Form）。
+
+**以后如何避免**
+- 网关补端点时，先确认底层 SDK（litellm）是否已有对应函数，有就统一封装、只处理输入输出差异（JSON/二进制/multipart）。
+- 数据 seed 的排除规则会悄悄挡掉后续要用的模型类别，扩端点时记得回头检查 EXCLUDE。
+
 ## token-router 改造 P11：第三方登录 SSO（GitHub/Google）
 
 **要点 / 决策**
