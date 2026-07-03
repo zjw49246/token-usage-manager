@@ -85,12 +85,6 @@ def test_login_and_keys_and_usage(tmp_config, capsys):
     cli.main(["usage"])
     assert "累计成本" in capsys.readouterr().out
 
-    # 余额 + 充值
-    cli.main(["topup", "20"])
-    assert "充值成功" in capsys.readouterr().out
-    cli.main(["balance"])
-    assert "余额" in capsys.readouterr().out
-
 
 def test_models_command(tmp_config, capsys):
     import anyio

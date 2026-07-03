@@ -6,13 +6,14 @@
 
 本项目已从「Gemini/DeepSeek 用量代理」改造为 TokenRouter——多供应商 AI 网关
 （P0~P5 六期完成）。改造历程见 `docs/TOKEN_ROUTER_TRANSFORM.md`。
-产品形态：三入口协议（OpenAI/Anthropic/Gemini）+ LiteLLM 内核 + 多租户 RBAC + 预付费计费 + 模型目录。
+产品形态：三入口协议（OpenAI/Anthropic/Gemini）+ LiteLLM 内核 + 多租户 RBAC + 模型目录。
+定位为**纯功能性网关**：只做路由/配额/用量观测，不含任何货币化/促销（无充值、余额、Stripe、价格倍率）。
 
 - **后端**：FastAPI + SQLAlchemy 2.0 async + SQLite(WAL)，`uv` 管理依赖；`backend/app/`
 - **迁移**：Alembic（`backend/alembic/`）。已有部署先 `alembic stamp 001` 再 `alembic upgrade head`；
   测试/全新开发环境由 `create_all` 直接建全量 schema
 - **Seed**：`uv run python -m scripts.seed` 灌供应商注册表 + 模型目录（价格来自 litellm.model_cost）+ 默认组织回填
-- **数据模型**（P0 后）：多租户（organizations/users/memberships/credit_transactions）+
+- **数据模型**（P0 后）：多租户（organizations/users/memberships）+
   平台目录（providers/model_catalog）+ 原有（api_keys/usage_records/usage_summary，已加 org_id/cost 列）
 - **路由内核**（P1/P6 后）：`services/router.py` 用 LiteLLM 数据驱动路由；成本按目录单价核算并原子累加。
   核心 `acompletion_once` / `aiter_openai_chunks` 接受**有序候选路由列表**，逐条尝试实现负载均衡+故障转移；
@@ -27,14 +28,14 @@
   ② 组织 RBAC（`dependencies.require_role`，member<admin<owner，超管视作 owner）；
   ③ 代理 API Key（`tum_`，归属 org）+ 平台超管 `ADMIN_TOKEN`（`/admin`）。
   org 隔离 API 在 `routers/orgs.py`（Key/用量/统计强制按 org_id 过滤）
-- **计费**（P4 后）：`services/credits.py` 的 `apply_credit` 原子改余额+写台账；新组织赠送
-  `welcome_credit_usd`；`record_usage` 按成本扣减组织余额并记 usage 台账；`check_quota` 在
-  `enforce_credit_balance` 下余额<=0 返回 402；`/orgs/{id}/credits` GET 查余额+流水、POST 充值(owner)
-- **CLI**（P12）：`app/cli.py`，`python -m app.cli <命令>`（login/models/keys/usage/balance/topup），
+- **用量观测**（P4 后，货币化已于「去商业化」移除）：`record_usage` 按目录单价核算 `cost_usd` 写
+  usage 明细+汇总（仅观测，不扣任何余额）；成本可作**功能性配额**上限——Key 的 `max_cost_usd`、
+  成员 `budget_usd`（超限 429）。已移除：充值/余额/Stripe/价格倍率/赠送额度/欠额 402 闸门
+- **CLI**（P12）：`app/cli.py`，`python -m app.cli <命令>`（login/models/keys/usage），
   配置存 `~/.tokenrouter/config.json`；console script `tr`（需 pip install 打包后可用）
 - **前端**（P2b/P4 后）：React18 + Vite + antd5，build 后由 FastAPI 托管；`frontend/`。
   JWT 会话（`stores/authStore.js`）+ 登录注册页 + 顶栏组织切换器 + 成员管理页；
-  数据页走 `/orgs/{currentOrgId}/*`；模型目录对比页（Models）+ 额度计费页（Billing）；旧 adminStore 已删。
+  数据页走 `/orgs/{currentOrgId}/*`；模型目录对比页（Models）；旧 adminStore 已删。
   i18n（P13）：轻量 `src/i18n.js`（zustand + 字典 + `t()`），中英切换 + antd ConfigProvider locale；
   已译导航/登录/头部，深层表单串留 t() 脚手架增量补
 

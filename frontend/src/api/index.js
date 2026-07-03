@@ -71,11 +71,6 @@ export const exportOrgUsageUrl = (orgId, params) => {
   return `/orgs/${orgId}/usage/export${qs ? '?' + qs : ''}`
 }
 
-// ── Credits / Billing ──
-export const getCredits = (orgId) => api.get(`/orgs/${orgId}/credits`).then(r => r.data)
-export const topupCredits = (orgId, data) => api.post(`/orgs/${orgId}/credits`, data).then(r => r.data)
-export const createCheckout = (orgId, data) => api.post(`/orgs/${orgId}/credits/checkout`, data).then(r => r.data)
-
 // ── Catalog ──
 export const listCatalogModels = (params) => api.get('/catalog/models', { params }).then(r => r.data)
 

@@ -3,7 +3,7 @@
 统一的多供应商 AI 模型网关：把 OpenAI / Anthropic / Google / DeepSeek / Mistral / Groq / xAI 等
 700+ 模型聚合成一套接口，**同时兼容 OpenAI、Anthropic(Claude)、Gemini 三种 API 格式**——
 任意一家 SDK 把 `base_url` 指过来即可，无需改代码即可切换模型。内置多租户管理后台：
-组织/成员 RBAC、每 Key 配额、按 USD 成本的预付费计费、模型价格对比。
+组织/成员 RBAC、每 Key 配额（含 USD 成本上限）、用量与成本观测、模型价格对比。纯功能性网关，不含计费/充值等货币化功能。
 
 ## 架构
 
@@ -12,7 +12,7 @@ OpenAI SDK    ─┐
 Anthropic SDK ─┼─→ TokenRouter (FastAPI) ──→ LiteLLM ──→ OpenAI / Anthropic / Gemini / DeepSeek / …
 Gemini SDK    ─┘   │  三入口方言翻译（/v1/chat/completions · /v1/messages · /v1beta）
                    │  多租户鉴权（JWT + 组织 RBAC）+ 代理 API Key
-                   │  配额（次数/Token/USD 成本/RPM）+ 预付费额度闸门
+                   │  配额（次数/Token/USD 成本上限/RPM）
                    │  模型目录（价格/上下文窗口）+ 用量与成本记录 (SQLite)
                    └─ React 前端 (build 后由 FastAPI 托管)
 ```
@@ -30,7 +30,7 @@ cp .env.example .env
 cd .. && docker compose up -d
 ```
 
-访问 http://localhost:8001 —— 打开即是 TokenRouter 登录页，注册账号（自动赠送启动额度）即可用。
+访问 http://localhost:8001 —— 打开即是 TokenRouter 登录页，注册账号即可用。
 模型目录在首次启动时自动灌入（含各家价格），无需手动 seed。
 
 ```bash
@@ -87,23 +87,20 @@ client.models.generate_content(model="gemini-2.5-flash", contents="Hi")
 | `OPENAI_API_KEY` / `ANTHROPIC_API_KEY` / `GEMINI_API_KEY` / `DEEPSEEK_API_KEY` / `MISTRAL_API_KEY` / `GROQ_API_KEY` / `XAI_API_KEY` | 各供应商上游凭证（配了哪家用哪家） | 全部可选 |
 | `ADMIN_TOKEN` | 平台超管 Token（供应商/目录等平台级运维） | `change-me`（必须改） |
 | `JWT_SECRET` | 用户登录 JWT 密钥（`openssl rand -hex 32`） | 必须改 |
-| `WELCOME_CREDIT_USD` | 新组织赠送启动额度（USD） | `5.0` |
-| `ENFORCE_CREDIT_BALANCE` | 余额 ≤ 0 时是否拦截调用（402） | `true` |
 | `DATABASE_URL` | SQLite 数据库路径 | `sqlite+aiosqlite:///./data/token_manager.db` |
 | `PORT` | 服务端口 | `8000` |
 
-## 权限与计费
+## 权限与配额
 
-- **组织 RBAC**：owner（含计费/删组织）> admin（管 Key/成员）> member（只读）
+- **组织 RBAC**：owner（删组织）> admin（管 Key/成员）> member（只读）
 - **每 Key 配额**：allowed_models / max_total_tokens / max_calls / max_rpm / **max_cost_usd** / 有效期
-- **预付费额度**：组织有 USD 余额，每次调用按模型单价扣减并记台账；余额 ≤ 0 拒绝（可关）
+- **成员预算**：成员 `budget_usd` 累计成本上限（超限 429）。成本仅用于观测与配额，不涉及计费/扣费
 
 ## 前端功能
 
 - **总览**：成本/Token/调用卡片、趋势折线图、各 Key 占比饼图（按当前组织）
 - **API Keys**：列表/创建/启停/删除，含成本上限与目录模型选择
 - **模型目录**：700+ 模型对比（供应商/输入输出价/上下文窗口/能力/verified，可搜索排序）
-- **额度计费**：余额、充值（owner）、额度流水台账
 - **成员**：邀请/移除成员、改角色（RBAC）
 - **接入指南**：OpenAI / Anthropic / Gemini 三种 SDK 示例
 - **组织切换器 + 登录注册**：多租户账户体系
@@ -117,8 +114,6 @@ uv run python -m app.cli login -e you@example.com
 uv run python -m app.cli models --mode chat        # 列模型
 uv run python -m app.cli keys create --name app --max-cost 10
 uv run python -m app.cli usage                       # 用量总览
-uv run python -m app.cli balance                     # 余额
-uv run python -m app.cli topup 50                    # 充值
 ```
 
 配置存 `~/.tokenrouter/config.json`。`pip install .` 后可直接用 `tr <命令>`。

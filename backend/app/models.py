@@ -17,8 +17,6 @@ class Organization(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     slug: Mapped[str] = mapped_column(String(100), unique=True, index=True, nullable=False)
-    credit_balance_usd: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
-    price_multiplier: Mapped[float] = mapped_column(Float, default=1.0, nullable=False, server_default="1")  # 组织价格倍率
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False)
 
     memberships: Mapped[list["Membership"]] = relationship(back_populates="organization", lazy="noload")
@@ -50,19 +48,6 @@ class Membership(Base):
 
     organization: Mapped["Organization"] = relationship(back_populates="memberships", lazy="noload")
     user: Mapped["User"] = relationship(back_populates="memberships", lazy="noload")
-
-
-class CreditTransaction(Base):
-    """组织级计费流水台账：充值(+)、消费(-)、调整(±)"""
-    __tablename__ = "credit_transactions"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    org_id: Mapped[int] = mapped_column(Integer, ForeignKey("organizations.id"), nullable=False, index=True)
-    amount_usd: Mapped[float] = mapped_column(Float, nullable=False)
-    type: Mapped[str] = mapped_column(String(20), nullable=False)  # topup / usage / adjustment
-    ref: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)  # 关联的 usage_record id 等
-    balance_after: Mapped[float] = mapped_column(Float, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), nullable=False, index=True)
 
 
 # ══════════════════ 供应商与模型目录（平台级）══════════════════

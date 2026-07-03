@@ -22,8 +22,6 @@ export default function Settings() {
           <Descriptions.Item label="组织名称">{org?.name}</Descriptions.Item>
           <Descriptions.Item label="标识">{org?.slug}</Descriptions.Item>
           <Descriptions.Item label="我的角色"><Tag color={ROLE_COLOR[org?.role]}>{org?.role}</Tag></Descriptions.Item>
-          <Descriptions.Item label="额度余额">${(org?.credit_balance_usd ?? 0).toFixed(2)}</Descriptions.Item>
-          <Descriptions.Item label="价格倍率">{org?.price_multiplier ?? 1}×{(org?.price_multiplier ?? 1) !== 1 ? (org.price_multiplier < 1 ? '（折扣）' : '（加价）') : ''}</Descriptions.Item>
         </Descriptions>
       </Card>
 

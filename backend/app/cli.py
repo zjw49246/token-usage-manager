@@ -1,4 +1,4 @@
-"""TokenRouter CLI（P12）：命令行管理登录 / 模型 / Key / 用量 / 充值。
+"""TokenRouter CLI（P12）：命令行管理登录 / 模型 / Key / 用量。
 
 安装后用 `tr <命令>`；配置存 ~/.tokenrouter/config.json。
   tr config --base https://token-router.claude-code-manager.com
@@ -8,7 +8,6 @@
   tr keys create --name app --max-cost 10
   tr keys rm <id>
   tr usage                             # 当前组织用量总览
-  tr balance | tr topup 50
   tr orgs | tr use <org_id>
 """
 import argparse
@@ -81,7 +80,7 @@ def cmd_login(args, cfg, client):
 def cmd_orgs(args, cfg, client):
     for o in client.get("/orgs").json():
         cur = " *" if o["id"] == cfg.get("org_id") else ""
-        print(f"#{o['id']:<4} {o['name']:<28} {o['role']:<8} ${o['credit_balance_usd']:.4f}{cur}")
+        print(f"#{o['id']:<4} {o['name']:<28} {o['role']:<8}{cur}")
 
 
 def cmd_use(args, cfg, client):
@@ -138,19 +137,6 @@ def cmd_usage(args, cfg, client):
     print(f"Key: {s['active_keys']}/{s['total_keys']} 启用")
 
 
-def cmd_balance(args, cfg, client):
-    oid = _require_org(cfg)
-    print(f"余额 ${client.get(f'/orgs/{oid}/credits').json()['balance_usd']:.4f}")
-
-
-def cmd_topup(args, cfg, client):
-    oid = _require_org(cfg)
-    r = client.post(f"/orgs/{oid}/credits", json={"amount_usd": args.amount, "note": "cli"})
-    if r.status_code != 200:
-        _die(r.json().get("detail", "充值失败"))
-    print(f"充值成功，余额 ${r.json()['balance_usd']:.4f}")
-
-
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="tr", description="TokenRouter CLI")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -167,8 +153,6 @@ def build_parser() -> argparse.ArgumentParser:
     kr = ksub.add_parser("rm"); kr.add_argument("id", type=int); kr.set_defaults(func=cmd_keys_rm)
 
     sub.add_parser("usage").set_defaults(func=cmd_usage)
-    sub.add_parser("balance").set_defaults(func=cmd_balance)
-    t = sub.add_parser("topup"); t.add_argument("amount", type=float); t.set_defaults(func=cmd_topup)
     return p
 
 

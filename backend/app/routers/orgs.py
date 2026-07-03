@@ -13,23 +13,19 @@ from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.dependencies import get_current_user, get_membership, require_role, require_superadmin, ROLE_LEVEL
+from app.dependencies import get_current_user, get_membership, require_role, ROLE_LEVEL
 from app.models import (
-    User, Organization, Membership, ApiKey, UsageRecord, UsageSummary, CreditTransaction,
+    User, Organization, Membership, ApiKey, UsageRecord, UsageSummary,
 )
 from app.schemas import (
     OrgCreate, OrgOut, MemberAdd, MemberUpdate, MemberOut,
     ApiKeyCreate, ApiKeyUpdate, ApiKeyOut, ApiKeyCreated,
     UsageSummaryOut, UsageRecordOut, UsageListOut, OverviewStats,
-    TrendPoint, TrendStats, KeyTokenShare,
-    CreditTopup, CreditTransactionOut, CreditBalanceOut, CheckoutIn, CheckoutOut, PlaygroundIn,
+    TrendPoint, TrendStats, KeyTokenShare, PlaygroundIn,
 )
 from app.services.auth import generate_api_key
-from app.services.credits import apply_credit
-from app.services import payments
 from app.services import router as model_router
 from app.services.quota import check_quota
-from app.config import settings
 
 PLAYGROUND_KEY_NAME = "__playground__"
 
@@ -80,31 +76,11 @@ async def create_org(body: OrgCreate, user: User = Depends(get_current_user), db
     db.add(org)
     await db.flush()
     db.add(Membership(org_id=org.id, user_id=user.id, role="owner"))
-    if settings.welcome_credit_usd > 0:
-        await apply_credit(db, org.id, settings.welcome_credit_usd, type="grant", ref="welcome", commit=False)
     await db.commit()
     await db.refresh(org)
     out = OrgOut.model_validate(org)
     out.role = "owner"
     return out
-
-
-@router.patch("/{org_id}/pricing", response_model=OrgOut)
-async def set_org_pricing(
-    org_id: int, payload: dict,
-    _sa: User = Depends(require_superadmin), db: AsyncSession = Depends(get_db),
-):
-    """超管设置组织价格倍率（>0；<1 折扣，>1 加价）"""
-    org = await db.get(Organization, org_id)
-    if org is None:
-        raise HTTPException(status_code=404, detail="Organization not found")
-    mult = payload.get("price_multiplier")
-    if mult is None or float(mult) <= 0:
-        raise HTTPException(status_code=400, detail="price_multiplier must be > 0")
-    org.price_multiplier = float(mult)
-    await db.commit()
-    await db.refresh(org)
-    return OrgOut.model_validate(org)
 
 
 @router.get("/{org_id}", response_model=OrgOut)
@@ -345,47 +321,6 @@ async def playground_chat(
     if body.max_tokens is not None:
         payload["max_tokens"] = body.max_tokens
     return await model_router.route_chat_completion(key, routes, payload)
-
-
-# ── 计费 / 额度 ────────────────────────────────────────────────────────────────
-
-@router.get("/{org_id}/credits", response_model=CreditBalanceOut)
-async def get_credits(org_id: int, m: Membership = Depends(get_membership), db: AsyncSession = Depends(get_db)):
-    org = await db.get(Organization, org_id)
-    if org is None:
-        raise HTTPException(status_code=404, detail="Organization not found")
-    txns = (
-        await db.execute(
-            select(CreditTransaction).where(CreditTransaction.org_id == org_id)
-            .order_by(CreditTransaction.created_at.desc()).limit(100)
-        )
-    ).scalars().all()
-    return CreditBalanceOut(
-        balance_usd=round(org.credit_balance_usd, 6),
-        transactions=[CreditTransactionOut.model_validate(t) for t in txns],
-    )
-
-
-@router.post("/{org_id}/credits", response_model=CreditBalanceOut)
-async def topup_credits(
-    org_id: int, body: CreditTopup,
-    m: Membership = Depends(require_role("owner")), db: AsyncSession = Depends(get_db),
-):
-    """手动充值（owner）。真实支付走 /credits/checkout。"""
-    await apply_credit(db, org_id, body.amount_usd, type="topup", ref=body.note or "manual")
-    return await get_credits(org_id, m, db)
-
-
-@router.post("/{org_id}/credits/checkout", response_model=CheckoutOut)
-async def create_checkout(
-    org_id: int, body: CheckoutIn,
-    m: Membership = Depends(require_role("owner")), db: AsyncSession = Depends(get_db),
-):
-    """发起 Stripe 在线充值，返回支付跳转 URL（支付完成由 webhook 入账）。"""
-    if not payments.stripe_enabled():
-        raise HTTPException(status_code=400, detail="Stripe not configured; use manual top-up")
-    url = payments.create_checkout_session(org_id, body.amount_usd, body.success_url, body.cancel_url)
-    return CheckoutOut(checkout_url=url)
 
 
 # ── org 隔离的统计 ─────────────────────────────────────────────────────────────

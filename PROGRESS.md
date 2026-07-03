@@ -1,5 +1,32 @@
 # 经验教训沉淀
 
+## 去商业化：移除货币化/促销，保留功能性
+
+**背景**：产品重新定位为纯功能性网关，去掉之前做的所有货币化/促销功能。
+
+**移除**（商业性）：Stripe 支付（services/payments.py、routers/billing.py、/credits/checkout、stripe 依赖）、
+预付费额度钱包（services/credits.py、apply_credit、credit_transactions 表、organizations.credit_balance_usd、
+welcome_credit_usd 赠送、enforce_credit_balance 的余额<=0→402 闸门、手动充值 /credits）、
+组织价格倍率（price_multiplier、PATCH /pricing、record_usage 里的倍率折算）、前端 Billing 页 + 导航项。
+
+**保留**（功能性，边界判断）：`cost_usd` 的核算/记账/展示是**观测**能力，不是计费——保留；
+成本作为**配额上限**（Key 的 max_cost_usd、成员 budget_usd→429）是功能性限额（等价于 token 配额），保留；
+模型目录价格是信息展示，保留。核心判据：**「记录/限制成本」是功能，「收钱/扣余额/加价」才是商业**。
+
+**要点**
+- 删列/删表用 alembic 013（batch_alter_table drop_column + drop_table）；因 init_db 走 create_all，
+  已部署库不会自动掉列（无害），但迁移链要补齐，且验证 `alembic upgrade head` 后 organizations 只剩 4 列、
+  credit_transactions 消失，与模型 create_all 一致。
+- 删依赖要顺藤摸瓜清 import：quota.py 去掉 apply_credit 后 settings/Organization 都变成未用，一并删；
+  orgs.py 去掉 pricing 后 require_superadmin 未用，一并删——留着死 import 不报错但脏。
+- 测试从 104→94（删 test_billing/test_stripe/test_price_multiplier 共 10 例），改 test_p0_schema/test_cli
+  里对 credit_transactions/topup/balance 的引用。前端 build 通过确认无残留 import。
+
+**以后如何避免**
+- 做「功能 vs 商业」切割时，先立判据（记录/限制=功能，收费/扣费=商业），再逐特性归类，避免误删观测能力。
+
+**commit**: 见本分支（feat/remove-commercial）
+
 ## token-router 改造 P15-P17：补全端点矩阵（rerank/responses/audio/video）
 
 **要点**
