@@ -168,8 +168,6 @@ class OrgOut(BaseModel):
     id: int
     name: str
     slug: str
-    credit_balance_usd: float
-    price_multiplier: float = 1.0
     created_at: datetime
     role: Optional[str] = None  # 当前用户在该组织的角色
 
@@ -195,39 +193,6 @@ class MemberOut(BaseModel):
     role: str
     budget_usd: Optional[float] = None
     created_at: datetime
-
-
-# ── 计费 / 额度（P4）──────────────────────────────────────────────────────────
-
-class CreditTopup(BaseModel):
-    amount_usd: float = Field(..., gt=0, le=100000)
-    note: Optional[str] = Field(None, max_length=100)
-
-
-class CreditTransactionOut(BaseModel):
-    id: int
-    amount_usd: float
-    type: str
-    ref: Optional[str]
-    balance_after: float
-    created_at: datetime
-
-    model_config = {"from_attributes": True}
-
-
-class CreditBalanceOut(BaseModel):
-    balance_usd: float
-    transactions: list[CreditTransactionOut]
-
-
-class CheckoutIn(BaseModel):
-    amount_usd: float = Field(..., gt=0, le=100000)
-    success_url: str
-    cancel_url: str
-
-
-class CheckoutOut(BaseModel):
-    checkout_url: str
 
 
 class PlaygroundIn(BaseModel):

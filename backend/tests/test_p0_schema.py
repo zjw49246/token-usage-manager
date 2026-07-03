@@ -4,21 +4,20 @@ from sqlalchemy import select
 
 from tests.conftest import TestSessionLocal
 from app.models import (
-    Organization, User, Membership, CreditTransaction,
+    Organization, User, Membership,
     Provider, ModelCatalog, ApiKey,
 )
 from scripts.seed import seed_providers, seed_catalog, seed_default_org
 
 
 async def test_new_tables_crud_smoke():
-    """新表能建能写能查（多租户 + 供应商 + 目录 + 台账）"""
+    """新表能建能写能查（多租户 + 供应商 + 目录）"""
     async with TestSessionLocal() as db:
-        org = Organization(name="Acme", slug="acme", credit_balance_usd=10.0)
+        org = Organization(name="Acme", slug="acme")
         user = User(email="a@b.c", password_hash="x", name="A")
         db.add_all([org, user])
         await db.flush()
         db.add(Membership(org_id=org.id, user_id=user.id, role="owner"))
-        db.add(CreditTransaction(org_id=org.id, amount_usd=10.0, type="topup", balance_after=10.0))
         provider = Provider(name="openai", litellm_prefix="openai", credential_env="OPENAI_API_KEY")
         db.add(provider)
         await db.flush()

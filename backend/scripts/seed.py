@@ -229,7 +229,7 @@ async def seed_default_org(db) -> None:
     """建默认组织并回填现有 Key / 用量的归属（幂等）"""
     org = (await db.execute(select(Organization).where(Organization.slug == "default"))).scalar_one_or_none()
     if org is None:
-        org = Organization(name="Default Organization", slug="default", credit_balance_usd=0.0)
+        org = Organization(name="Default Organization", slug="default")
         db.add(org)
         await db.flush()
     await db.execute(update(ApiKey).where(ApiKey.org_id.is_(None)).values(org_id=org.id))

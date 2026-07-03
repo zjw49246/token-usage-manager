@@ -44,10 +44,6 @@ uv run pytest tests/ -v
 | `test_ingress_dialects.py` | Gemini 流式 | streamGenerateContent SSE，尾块带 usageMetadata |
 | `test_ingress_dialects.py` | 入口未知模型 404 | 三入口共用目录解析 |
 | `test_ingress_dialects.py` | 入口缺 Key 401 | x-api-key/x-goog-api-key/?key/Bearer 都没有时拒绝 |
-| `test_billing.py` | 启动额度赠送 | 注册即赠送 welcome_credit_usd，有 grant 台账 |
-| `test_billing.py` | 充值权限 | owner 充值成功并记 topup；member 充值 403 |
-| `test_billing.py` | 欠额闸门 | 余额<=0 时调用返回 402 |
-| `test_billing.py` | 消费扣减台账 | 调用后余额按成本减少，生成 usage 台账 |
 | `test_failover.py` | 故障转移 | 通道A失败自动转通道B成功 |
 | `test_failover.py` | 全部失败 | 所有通道失败返回上游状态码 |
 | `test_failover.py` | 重试上限 | max_retries 限制最多尝试通道数 |
@@ -62,10 +58,6 @@ uv run pytest tests/ -v
 | `test_endpoints.py` | image 按张计价 | /v1/images/generations 按 n×image_price 计费 |
 | `test_endpoints.py` | 目录暴露 mode | catalog 返回 mode/image_price（chat/embedding/image）|
 | `test_endpoints.py` | 端点未知模型 404 | embeddings 未知模型 404 |
-| `test_stripe.py` | 未配置拦截 | 未配 Stripe 时 checkout 返回 400 |
-| `test_stripe.py` | checkout 返回 URL | owner 发起返回支付跳转 URL |
-| `test_stripe.py` | webhook 幂等入账 | 同一支付 ref 只入账一次，余额+50 |
-| `test_stripe.py` | webhook 忽略非充值 | 非充值完成事件不入账 |
 | `test_member_budget.py` | 成员预算回显+强制 | 设成员预算并回显；累计消费超预算返回 429 |
 | `test_member_budget.py` | 无预算不限 | 未设预算的成员可无限调用 |
 | `test_sso.py` | providers 反映配置 | 未配空；配了 github 返回 [github] |
@@ -87,7 +79,7 @@ uv run pytest tests/ -v
 | `test_reasoning.py` | 推理后缀 | model-low/-high/-thinking 注入 reasoning_effort 路由到基础模型 |
 | `test_reasoning.py` | 后缀基础模型缺失404 | base 不在目录时 404 |
 | `test_reasoning.py` | reasoning→think | 开关开时 reasoning_content 合并为 <think> |
-| `test_cli.py` | 登录/建Key/用量/充值 | CLI 对 ASGI app 跑通登录→建 Key→用量→充值→余额 |
+| `test_cli.py` | 登录/建Key/用量 | CLI 对 ASGI app 跑通登录→建 Key→用量总览 |
 | `test_cli.py` | models 命令 | 列出模型并计数 |
 | `test_cli.py` | config 命令 | 设置 base_url |
 | `test_rerank_responses.py` | rerank 端点 | /v1/rerank 转译+故障转移+成本记账 |
@@ -112,8 +104,6 @@ uv run pytest tests/ -v
 | `test_aliases.py` | 别名 CRUD + 路由 | 建别名后用别名调用透明改写到目标模型 |
 | `test_aliases.py` | 目标不存在 404 | 目标模型不在目录 404 |
 | `test_aliases.py` | 需超管 | 普通用户 403 |
-| `test_price_multiplier.py` | 组织倍率计费 | 设 2× 后成本按倍率折算 |
-| `test_price_multiplier.py` | 需超管 | 普通用户设倍率 403 |
 
 ## 手动集成测试
 

@@ -19,9 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from sqlalchemy import func as sqlfunc
 
-from app.config import settings
-from app.models import ApiKey, UsageSummary, UsageRecord, Organization, Membership
-from app.services.credits import apply_credit
+from app.models import ApiKey, UsageSummary, UsageRecord, Membership
 
 # 内存 RPM 计数器：{api_key_id: deque of timestamps}
 _rpm_windows: dict[int, deque] = defaultdict(deque)
@@ -66,14 +64,6 @@ async def check_quota(db: AsyncSession, api_key: ApiKey, model: str) -> None:
     # 2. 模型白名单（只读判断）
     if api_key.allowed_models is not None and model not in api_key.allowed_models:
         raise HTTPException(status_code=403, detail=f"Model '{model}' not allowed for this key")
-
-    # 2.5 组织额度闸门：余额 <= 0 拒绝（预付费模式）
-    if settings.enforce_credit_balance and api_key.org_id is not None:
-        balance = await db.scalar(
-            select(Organization.credit_balance_usd).where(Organization.id == api_key.org_id)
-        )
-        if balance is not None and balance <= 0:
-            raise HTTPException(status_code=402, detail="Insufficient credits, please top up")
 
     # 2.6 成员级预算：该 Key 创建者在本组织的累计消费不得超过其 budget_usd
     if api_key.org_id is not None and api_key.created_by_user_id is not None:
@@ -181,12 +171,6 @@ async def record_usage(
     # 保证 summary 行存在（防御性；正常流程 check_quota 已建好）
     await _ensure_summary(db, api_key_id)
 
-    # 组织价格倍率（P23）：按组织折算成本（在缓存折算之上再乘）
-    if org_id is not None and cost_usd:
-        mult = await db.scalar(select(Organization.price_multiplier).where(Organization.id == org_id))
-        if mult is not None and mult != 1.0:
-            cost_usd = round(cost_usd * mult, 8)
-
     # 写明细
     record = UsageRecord(
         api_key_id=api_key_id,
@@ -216,11 +200,6 @@ async def record_usage(
         )
     )
     await db.flush()
-
-    # 组织额度扣减 + 台账（有成本且归属组织时）
-    if org_id is not None and cost_usd:
-        await apply_credit(db, org_id, -cost_usd, type="usage", ref=str(record.id), commit=False)
-
     await db.commit()
 
     # Prometheus 指标（不影响主流程）

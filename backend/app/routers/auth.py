@@ -14,9 +14,7 @@ from app.services.user_auth import (
     hash_password, verify_password,
     create_access_token, create_refresh_token, decode_token,
 )
-from app.services.credits import apply_credit
 from app.services import oauth
-from app.config import settings
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -27,7 +25,7 @@ def _slugify(name: str, suffix: int) -> str:
 
 
 async def provision_user(db: AsyncSession, email: str, name: str, password_hash: str) -> User:
-    """建用户 + 个人组织(owner) + 赠送额度（注册与 SSO 首次登录共用）"""
+    """建用户 + 个人组织(owner)（注册与 SSO 首次登录共用）"""
     user = User(email=email, password_hash=password_hash, name=name)
     db.add(user)
     await db.flush()
@@ -35,8 +33,6 @@ async def provision_user(db: AsyncSession, email: str, name: str, password_hash:
     db.add(org)
     await db.flush()
     db.add(Membership(org_id=org.id, user_id=user.id, role="owner"))
-    if settings.welcome_credit_usd > 0:
-        await apply_credit(db, org.id, settings.welcome_credit_usd, type="grant", ref="welcome", commit=False)
     await db.commit()
     return user
 
